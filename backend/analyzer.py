@@ -270,6 +270,7 @@ class Analyzer:
             title = response.choices[0].message.content.strip()
             # Remove quotes if present
             title = title.strip('"\'')
+            print(title)
             return title
             
         except Exception as e:
@@ -288,9 +289,8 @@ class Analyzer:
         Returns:
             Dictionary in deck format with meta and slides
         """
-        # Generate title if not provided
-        if not title:
-            title = self.generate_presentation_title(text)
+        # Generate title
+        title = self.generate_presentation_title(text)
         
         # Extract content slides (max_slides will be content slides, not including title slide)
         slides = self.extract_key_points(text, max_slides)
