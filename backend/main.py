@@ -91,112 +91,139 @@ async def health_check():
 # Main endpoint - Create slides from document
 @app.post("/create-slides")
 async def create_slides(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     max_slides: int = Form(5),
     title: Optional[str] = Form(None)
 ):
     """
     Complete document processing pipeline in one endpoint:
-    1. Extract text from uploaded file
+    1. Extract text from uploaded files
     2. Create slides (deck JSON)
     3. Validate the generated slides
     4. Return slides + validation results
-    
+
     This is the ONLY endpoint needed for the frontend.
     """
     if not analyzer:
         raise HTTPException(status_code=500, detail="Analyzer not available")
-    
+
     if not validation_agent:
         raise HTTPException(status_code=500, detail="Validation agent not available")
-    
-    try:
-        # Step 1: Extract text from file
-        print(f"📄 Extracting text from {file.filename}...")
-        
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp_file:
-            content = await file.read()
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    if len(files) > 3:
+        raise HTTPException(status_code=400, detail="Maximum of 3 files allowed per request")
+
+    combined_text_parts: List[str] = []
+    file_infos: List[Dict[str, Any]] = []
+    extractors = {
+        '.pdf': extract_pdf,
+        '.docx': extract_docx,
+        '.txt': extract_txt,
+        '.md': extract_markdown,
+    }
+
+    for upload in files:
+        filename = upload.filename or 'unnamed-file'
+        print(f"📄 Extracting text from {filename}...")
+
+        file_extension = Path(filename).suffix.lower()
+        extractor = extractors.get(file_extension)
+        if not extractor:
+            supported = ', '.join(extractors.keys())
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {file_extension or 'unknown'} in {filename}. Supported types: {supported}"
+            )
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
+            content = await upload.read()
             tmp_file.write(content)
             tmp_file_path = tmp_file.name
-        
+
         try:
-            # Extract text based on file type
-            file_extension = Path(file.filename).suffix.lower()
-            
-            if file_extension == '.pdf':
-                text = extract_pdf(tmp_file_path)
-            elif file_extension == '.docx':
-                text = extract_docx(tmp_file_path)
-            elif file_extension == '.txt':
-                text = extract_txt(tmp_file_path)
-            elif file_extension == '.md':
-                text = extract_markdown(tmp_file_path)
-            else:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Unsupported file type: {file_extension}. Supported types: .pdf, .docx, .txt, .md"
-                )
-            
-            print(f"✅ Text extracted: {len(text)} characters")
-            
+            text = extractor(tmp_file_path)
+            print(f"✅ Text extracted from {filename}: {len(text)} characters")
         finally:
-            # Clean up temporary file
             if os.path.exists(tmp_file_path):
                 os.unlink(tmp_file_path)
-        
-        # Step 2: Create slides
-        print(f"🎯 Creating {max_slides} slides...")
-        deck = analyzer.create_deck_format(
-            text=text,
-            max_slides=max_slides,
-            title=title
-        )
-        print(f"✅ Slides created: {deck['meta']['total_slides']} total slides")
-        
-        # Step 3: Validate the slides (optional - don't fail if validation fails)
-        print("🔍 Validating slide content...")
-        validation_results = {
-            "total_claims": 0,
-            "valid_claims": 0,
-            "invalid_claims": 0,
-            "uncertain_claims": 0,
-            "overall_confidence": 0.0,
-            "summary": "Validation not performed",
-            "results": []
+
+        if not text or not text.strip():
+            print(f"⚠️ No extractable text found in {filename}")
+            continue
+
+        combined_text_parts.append(f"# Source: {filename}\n{text.strip()}")
+        file_infos.append({
+            "filename": filename,
+            "file_type": file_extension,
+        })
+
+    if not combined_text_parts:
+        raise HTTPException(status_code=400, detail="No extractable text found in the uploaded files")
+
+    combined_text = "\n\n".join(combined_text_parts)
+    print(f"✅ Combined text length: {len(combined_text)} characters from {len(file_infos)} file(s)")
+
+    # Step 2: Create slides
+    print(f"🎯 Creating {max_slides} slides...")
+    deck = analyzer.create_deck_format(
+        text=combined_text,
+        max_slides=max_slides,
+        title=title
+    )
+    print(f"✅ Slides created: {deck['meta']['total_slides']} total slides")
+
+    # Step 3: Validate the slides (optional - don't fail if validation fails)
+    print("🔍 Validating slide content...")
+    validation_results = {
+        "total_claims": 0,
+        "valid_claims": 0,
+        "invalid_claims": 0,
+        "uncertain_claims": 0,
+        "overall_confidence": 0.0,
+        "summary": "Validation not performed",
+        "results": []
+    }
+
+    try:
+        analyzed_data = {
+            "extracted_text": combined_text,
+            "text_length": len(combined_text),
+            "file_info": file_infos,
         }
-        
-        try:
-            # Create analyzed data from extracted text
-            analyzed_data = {
-                "extracted_text": text,
-                "text_length": len(text),
-                "file_info": {
-                    "filename": file.filename,
-                    "file_type": file_extension
-                }
-            }
-            
-            # Validate claims
-            report = validation_agent.validate_claims(
-                slide_data=deck,
-                analyzed_data=analyzed_data
-            )
-            
-            # Convert validation report to dict
-            validation_results = {
-                "total_claims": report.total_claims,
-                "valid_claims": report.valid_claims,
-                "invalid_claims": report.invalid_claims,
-                "uncertain_claims": report.uncertain_claims,
-                "overall_confidence": report.overall_confidence,
-                "summary": report.summary,
-                "results": [
-                    {
-                        "claim": r.claim,
-                        "status": r.status.value,
-                        "confidence_score": r.confidence_score,
-                        "explanation": r.explanation,
+
+        report = validation_agent.validate_claims(
+            slide_data=deck,
+            analyzed_data=analyzed_data
+        )
+
+        validation_results = {
+            "total_claims": report.total_claims,
+            "valid_claims": report.valid_claims,
+            "invalid_claims": report.invalid_claims,
+            "uncertain_claims": report.uncertain_claims,
+            "overall_confidence": report.overall_confidence,
+            "summary": report.summary,
+            "results": [
+                {
+                    "claim": r.claim,
+                    "status": r.status.value,
+                    "confidence_score": r.confidence_score,
+                    "explanation": r.explanation,
+                    "proof_sources": [
+                        {
+                            "title": ps.title,
+                            "url": ps.url,
+                            "snippet": ps.snippet,
+                            "reliability_score": ps.reliability_score
+                        }
+                        for ps in r.proof_sources
+                    ],
+                    "replacement_suggestion": {
+                        "suggested_replacement": r.replacement_suggestion.suggested_replacement,
+                        "explanation": r.replacement_suggestion.explanation,
                         "proof_sources": [
                             {
                                 "title": ps.title,
@@ -204,54 +231,37 @@ async def create_slides(
                                 "snippet": ps.snippet,
                                 "reliability_score": ps.reliability_score
                             }
-                            for ps in r.proof_sources
-                        ],
-                        "replacement_suggestion": {
-                            "suggested_replacement": r.replacement_suggestion.suggested_replacement,
-                            "explanation": r.replacement_suggestion.explanation,
-                            "proof_sources": [
-                                {
-                                    "title": ps.title,
-                                    "url": ps.url,
-                                    "snippet": ps.snippet,
-                                    "reliability_score": ps.reliability_score
-                                }
-                                for ps in r.replacement_suggestion.proof_sources
-                            ]
-                        } if r.replacement_suggestion else None,
-                        "recommendations": r.recommendations
-                    }
-                    for r in report.results
-                ]
-            }
-            
-            print(f"✅ Validation complete: {report.valid_claims}/{report.total_claims} claims valid")
-            
-        except Exception as validation_error:
-            print(f"⚠️ Validation failed: {str(validation_error)}")
-            print("📝 Continuing without validation...")
-            validation_results = {
-                "total_claims": 0,
-                "valid_claims": 0,
-                "invalid_claims": 0,
-                "uncertain_claims": 0,
-                "overall_confidence": 0.0,
-                "summary": f"Validation failed: {str(validation_error)}",
-                "results": []
-            }
-        
-        # Return the complete response
-        return {
-            "success": True,
-            "slides": deck,  # The deck JSON
-            "validation": validation_results,  # Validation results array
-            "processed_at": time.time()
+                            for ps in r.replacement_suggestion.proof_sources
+                        ]
+                    } if r.replacement_suggestion else None,
+                    "recommendations": r.recommendations
+                }
+                for r in report.results
+            ]
         }
-    
-    except Exception as e:
-        print(f"❌ Error in create-slides: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error processing document: {str(e)}")
 
+        print(f"✅ Validation complete: {report.valid_claims}/{report.total_claims} claims valid")
+
+    except Exception as validation_error:
+        print(f"⚠️ Validation failed: {str(validation_error)}")
+        print("📝 Continuing without validation...")
+        validation_results = {
+            "total_claims": 0,
+            "valid_claims": 0,
+            "invalid_claims": 0,
+            "uncertain_claims": 0,
+            "overall_confidence": 0.0,
+            "summary": f"Validation failed: {str(validation_error)}",
+            "results": []
+        }
+
+    # Return the complete response
+    return {
+        "success": True,
+        "slides": deck,
+        "validation": validation_results,
+        "processed_at": time.time()
+    }
 # Edit slides based on user notes
 @app.post("/edit-slides", response_model=SlideEditResponse)
 async def edit_slides(request: SlideEditRequest):

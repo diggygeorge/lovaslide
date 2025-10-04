@@ -149,7 +149,7 @@ class ValidationAgent:
             ValidationReport with validation results
         """
         # Extract facts from raw document text instead of slides
-        claims = self._extract_claims_from_raw_text(analyzed_data, max_claims=8)  # Increased to capture more claims
+        claims = self._extract_claims_from_raw_text(analyzed_data, max_claims=5)
         
         # Validate claims in parallel for better performance
         validation_results = self._validate_claims_parallel(claims, analyzed_data)
@@ -158,7 +158,7 @@ class ValidationAgent:
         report = self._generate_validation_report(validation_results)
         return report
     
-    def _extract_claims_from_raw_text(self, analyzed_data: Dict[str, Any], max_claims: int = 8) -> List[str]:
+    def _extract_claims_from_raw_text(self, analyzed_data: Dict[str, Any], max_claims: int = 5) -> List[str]:
         """
         Extract verifiable claims from raw document text, limited to max_claims
         
@@ -179,15 +179,13 @@ class ValidationAgent:
             
             # Extract factual statements from raw document text
             text_claims = self._extract_factual_statements(raw_text)
-            print(f"📋 Extracted {len(text_claims)} facts from document")
-            for i, claim in enumerate(text_claims, 1):
+            total_facts = len(text_claims)
+            limited_claims = text_claims[:max_claims]
+            print(f"📋 Extracted {total_facts} facts from document (using {len(limited_claims)} for validation)")
+            for i, claim in enumerate(limited_claims, 1):
                 print(f"   {i}. {claim}")
             
-            # Add claims up to the limit
-            for claim in text_claims:
-                if len(claims) >= max_claims:
-                    break
-                claims.append(claim)
+            claims.extend(limited_claims)
         
         # Fallback to legacy data extraction if no raw text
         if not claims and 'extracted_data' in analyzed_data:

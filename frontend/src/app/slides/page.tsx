@@ -42,9 +42,260 @@ const BASE_FONT_STACK =
 const SLIDE_WIDTH = 1280;
 const SLIDE_HEIGHT = 720;
 
+// Animation utilities
+const easingFunctions = {
+   easeInOut: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+   easeOut: (t: number) => 1 - Math.pow(1 - t, 3),
+   easeIn: (t: number) => t * t * t,
+   bounce: (t: number) => {
+      if (t < 1 / 2.75) return 7.5625 * t * t;
+      if (t < 2 / 2.75) return 7.5625 * (t -= 1.5 / 2.75) * t + 0.75;
+      if (t < 2.5 / 2.75) return 7.5625 * (t -= 2.25 / 2.75) * t + 0.9375;
+      return 7.5625 * (t -= 2.625 / 2.75) * t + 0.984375;
+   },
+   elastic: (t: number) => {
+      if (t === 0 || t === 1) return t;
+      return (
+         Math.pow(2, -10 * t) * Math.sin(((t - 0.1) * (2 * Math.PI)) / 0.4) + 1
+      );
+   },
+};
+
+function getEasingFunction(easing: string) {
+   return (
+      easingFunctions[easing as keyof typeof easingFunctions] ||
+      easingFunctions.easeInOut
+   );
+}
+
+type TimelineEntry = {
+   key: string;
+   config: AnimationConfig;
+   delay: number;
+   duration: number;
+   easingFn: (t: number) => number;
+};
+
+type SlideTimeline = {
+   entries: TimelineEntry[];
+   totalDuration: number;
+};
+
+const DEFAULT_STAGGER = 140;
+
+function buildSlideTimeline(slide: DeckSlide): SlideTimeline {
+   if (!slide.animations) {
+      return { entries: [], totalDuration: 0 };
+   }
+
+   const entries: TimelineEntry[] = [];
+   const pushEntry = (key: string, config: AnimationConfig) => {
+      entries.push({
+         key,
+         config,
+         delay: config.delay,
+         duration: Math.max(config.duration, 1),
+         easingFn: getEasingFunction(config.easing),
+      });
+   };
+
+   const { background, title, bullets, image } = slide.animations;
+
+   if (background) {
+      pushEntry("background", background);
+   }
+   if (title) {
+      pushEntry("title", title);
+   }
+   if (image) {
+      pushEntry("image", image);
+   }
+
+   if (bullets) {
+      if (bullets.type === "stagger" && slide.bullets?.length) {
+         const stagger = bullets.stagger ?? DEFAULT_STAGGER;
+         slide.bullets.forEach((_, index) => {
+            entries.push({
+               key: `bullet-${index}`,
+               config: { ...bullets, delay: bullets.delay + index * stagger },
+               delay: bullets.delay + index * stagger,
+               duration: Math.max(bullets.duration, 1),
+               easingFn: getEasingFunction(bullets.easing),
+            });
+         });
+      } else if (bullets.type === "typewriter") {
+         pushEntry("typewriter", bullets);
+      } else {
+         pushEntry("bullets", bullets);
+      }
+   }
+
+   const totalDuration = entries.reduce<number>((max, entry) => {
+      return Math.max(max, entry.delay + entry.duration);
+   }, 0);
+
+   return { entries, totalDuration };
+}
+
+function computeTimelineProgress(
+   timeline: SlideTimeline,
+   elapsedMs: number
+): Record<string, number> {
+   if (timeline.entries.length === 0) {
+      return {};
+   }
+
+   const progress: Record<string, number> = {};
+   timeline.entries.forEach((entry) => {
+      const normalized = entry.duration
+         ? (elapsedMs - entry.delay) / entry.duration
+         : 1;
+      const clamped = Math.min(Math.max(normalized, 0), 1);
+      progress[entry.key] = entry.easingFn(clamped);
+   });
+
+   return progress;
+}
+
+function clamp(value: number, min: number, max: number) {
+   return Math.min(Math.max(value, min), max);
+}
+
+const DEFAULT_TRANSLATION_DISTANCE = 120;
+const MIN_VISIBLE_ALPHA = 0.01;
+
+function applyAnimationTransform(
+   ctx: CanvasRenderingContext2D,
+   config: AnimationConfig,
+   progress: number,
+   bounds: { x: number; y: number; width: number; height: number }
+) {
+   const easedProgress = clamp(progress, 0, 1);
+   const distance = Math.max(
+      DEFAULT_TRANSLATION_DISTANCE,
+      bounds.width,
+      bounds.height
+   );
+   const centerX = bounds.x + bounds.width / 2;
+   const centerY = bounds.y + bounds.height / 2;
+
+   const ensureAlpha = () => {
+      ctx.globalAlpha = Math.max(easedProgress, MIN_VISIBLE_ALPHA);
+   };
+
+   switch (config.type) {
+      case "fadeIn": {
+         ensureAlpha();
+         break;
+      }
+      case "slideInLeft": {
+         ctx.translate(-distance * (1 - easedProgress) * 0.4, 0);
+         ensureAlpha();
+         break;
+      }
+      case "slideInRight": {
+         ctx.translate(distance * (1 - easedProgress) * 0.4, 0);
+         ensureAlpha();
+         break;
+      }
+      case "slideInUp": {
+         ctx.translate(0, distance * (1 - easedProgress) * 0.35);
+         ensureAlpha();
+         break;
+      }
+      case "slideInDown": {
+         ctx.translate(0, -distance * (1 - easedProgress) * 0.35);
+         ensureAlpha();
+         break;
+      }
+      case "zoomIn": {
+         const scale = 0.75 + easedProgress * 0.25;
+         ctx.translate(centerX, centerY);
+         ctx.scale(scale, scale);
+         ctx.translate(-centerX, -centerY);
+         ensureAlpha();
+         break;
+      }
+      case "bounceIn": {
+         const bounce = 1 + Math.sin(easedProgress * Math.PI) * 0.12;
+         ctx.translate(centerX, centerY);
+         ctx.scale(bounce, bounce);
+         ctx.translate(-centerX, -centerY);
+         ensureAlpha();
+         break;
+      }
+      case "rotateIn": {
+         const angle = ((1 - easedProgress) * Math.PI) / 9;
+         ctx.translate(centerX, centerY);
+         ctx.rotate(angle);
+         ctx.translate(-centerX, -centerY);
+         ensureAlpha();
+         break;
+      }
+      case "flipInX": {
+         ctx.translate(centerX, centerY);
+         ctx.scale(1, easedProgress);
+         ctx.translate(-centerX, -centerY);
+         ensureAlpha();
+         break;
+      }
+      case "flipInY": {
+         ctx.translate(centerX, centerY);
+         ctx.scale(easedProgress, 1);
+         ctx.translate(-centerX, -centerY);
+         ensureAlpha();
+         break;
+      }
+      case "typewriter": {
+         ensureAlpha();
+         break;
+      }
+      case "stagger": {
+         ctx.translate(0, distance * (1 - easedProgress) * 0.25);
+         ensureAlpha();
+         break;
+      }
+      default: {
+         ensureAlpha();
+      }
+   }
+}
+
+function withAnimation(
+   ctx: CanvasRenderingContext2D,
+   config: AnimationConfig | undefined,
+   progress: number | undefined,
+   bounds: { x: number; y: number; width: number; height: number },
+   draw: () => void
+) {
+   if (!config) {
+      draw();
+      return;
+   }
+
+   const value = progress ?? 1;
+   if (value <= 0) {
+      return;
+   }
+
+   ctx.save();
+   applyAnimationTransform(ctx, config, value, bounds);
+   draw();
+   ctx.restore();
+}
+
 type DeckMeta = {
    title: string;
-   theme: "dark" | "light" | "blue" | "green" | "purple" | "corporate";
+   theme:
+      | "dark"
+      | "light"
+      | "blue"
+      | "green"
+      | "purple"
+      | "corporate"
+      | "geometric"
+      | "minimal"
+      | "creative";
 };
 
 type SlideMedia = {
@@ -76,6 +327,7 @@ type DeckSlide = {
       left: { title: string; items: string[] };
       right: { title: string; items: string[] };
    };
+   animations?: SlideAnimation;
 };
 
 type SlideWithStatus = DeckSlide & {
@@ -95,6 +347,39 @@ type ThemeConfig = {
    metaText: string;
    bullet: string;
    watermark: string;
+   backgroundPattern?: string;
+   layoutStyle?: "default" | "geometric" | "minimal" | "creative";
+   shapeStyle?: "circles" | "rectangles" | "triangles" | "organic" | "none";
+};
+
+type AnimationType =
+   | "fadeIn"
+   | "slideInLeft"
+   | "slideInRight"
+   | "slideInUp"
+   | "slideInDown"
+   | "zoomIn"
+   | "rotateIn"
+   | "bounceIn"
+   | "flipInX"
+   | "flipInY"
+   | "typewriter"
+   | "reveal"
+   | "stagger";
+
+type AnimationConfig = {
+   type: AnimationType;
+   duration: number;
+   delay: number;
+   easing: string;
+   stagger?: number;
+};
+
+type SlideAnimation = {
+   title?: AnimationConfig;
+   bullets?: AnimationConfig;
+   image?: AnimationConfig;
+   background?: AnimationConfig;
 };
 
 type BrowserSpeechRecognition = {
@@ -211,6 +496,54 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#1e293b",
       watermark: "rgba(51,65,85,0.04)",
    },
+   geometric: {
+      background: "#0a0a0a",
+      gradient: ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.02)"],
+      panel: "rgba(20,20,20,0.90)",
+      panelStroke: "rgba(255,255,255,0.15)",
+      accent: "#00d4ff",
+      accentSoft: "rgba(0,212,255,0.20)",
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.85)",
+      metaText: "rgba(255,255,255,0.60)",
+      bullet: "#00d4ff",
+      watermark: "rgba(0,212,255,0.10)",
+      backgroundPattern: "geometric",
+      layoutStyle: "geometric",
+      shapeStyle: "rectangles",
+   },
+   minimal: {
+      background: "#ffffff",
+      gradient: ["rgba(0,0,0,0.02)", "rgba(0,0,0,0.01)"],
+      panel: "rgba(255,255,255,0.95)",
+      panelStroke: "rgba(0,0,0,0.08)",
+      accent: "#000000",
+      accentSoft: "rgba(0,0,0,0.05)",
+      textPrimary: "#000000",
+      textSecondary: "rgba(0,0,0,0.70)",
+      metaText: "rgba(0,0,0,0.50)",
+      bullet: "#000000",
+      watermark: "rgba(0,0,0,0.03)",
+      backgroundPattern: "minimal",
+      layoutStyle: "minimal",
+      shapeStyle: "none",
+   },
+   creative: {
+      background: "#1a0b2e",
+      gradient: ["rgba(255,20,147,0.15)", "rgba(0,191,255,0.10)"],
+      panel: "rgba(30,15,50,0.85)",
+      panelStroke: "rgba(255,20,147,0.30)",
+      accent: "#ff1493",
+      accentSoft: "rgba(255,20,147,0.20)",
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.90)",
+      metaText: "rgba(255,20,147,0.80)",
+      bullet: "#00bfff",
+      watermark: "rgba(255,20,147,0.10)",
+      backgroundPattern: "creative",
+      layoutStyle: "creative",
+      shapeStyle: "organic",
+   },
 };
 
 const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
@@ -223,6 +556,20 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
          layout: "title",
          title: "Welcome to the Enhanced Demo",
          notes: "Set the tone and highlight the big promise upfront.",
+         animations: {
+            title: {
+               type: "zoomIn",
+               duration: 1000,
+               delay: 0,
+               easing: "bounce",
+            },
+            background: {
+               type: "fadeIn",
+               duration: 800,
+               delay: 0,
+               easing: "easeOut",
+            },
+         },
       },
       {
          layout: "quote",
@@ -230,6 +577,20 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
          quote: "The best way to predict the future is to create it.",
          author: "Peter Drucker",
          notes: "Start with an inspiring quote to set the mood.",
+         animations: {
+            title: {
+               type: "slideInLeft",
+               duration: 800,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "typewriter",
+               duration: 2000,
+               delay: 500,
+               easing: "easeInOut",
+            },
+         },
       },
       {
          layout: "stats",
@@ -257,6 +618,21 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
             },
          ],
          notes: "Use compelling statistics to build credibility.",
+         animations: {
+            title: {
+               type: "slideInDown",
+               duration: 600,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "stagger",
+               duration: 400,
+               delay: 200,
+               easing: "bounce",
+               stagger: 150,
+            },
+         },
       },
       {
          layout: "comparison",
@@ -282,6 +658,21 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
             },
          },
          notes: "Clear comparison helps audience understand the value proposition.",
+         animations: {
+            title: {
+               type: "slideInLeft",
+               duration: 700,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "slideInRight",
+               duration: 500,
+               delay: 300,
+               easing: "easeOut",
+               stagger: 100,
+            },
+         },
       },
       {
          layout: "image-right",
@@ -300,6 +691,27 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
             },
          ],
          notes: "Show the product in action with key benefits.",
+         animations: {
+            title: {
+               type: "slideInUp",
+               duration: 600,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "fadeIn",
+               duration: 400,
+               delay: 200,
+               easing: "easeInOut",
+               stagger: 150,
+            },
+            image: {
+               type: "zoomIn",
+               duration: 800,
+               delay: 600,
+               easing: "bounce",
+            },
+         },
       },
       {
          layout: "three-col",
@@ -313,6 +725,21 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
             "Feature 6: Mobile apps",
          ],
          notes: "Break down features into digestible categories.",
+         animations: {
+            title: {
+               type: "flipInY",
+               duration: 800,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "stagger",
+               duration: 400,
+               delay: 200,
+               easing: "bounce",
+               stagger: 100,
+            },
+         },
       },
       {
          layout: "title-bullets",
@@ -324,6 +751,21 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
             "Week 7-8: Launch & Support",
          ],
          notes: "Give clear expectations about the implementation process.",
+         animations: {
+            title: {
+               type: "flipInX",
+               duration: 800,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "reveal",
+               duration: 300,
+               delay: 400,
+               easing: "easeInOut",
+               stagger: 200,
+            },
+         },
       },
       {
          layout: "roadmap",
@@ -335,6 +777,21 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
             "Q4: Enterprise features",
          ],
          notes: "Show the vision and commitment to continuous improvement.",
+         animations: {
+            title: {
+               type: "rotateIn",
+               duration: 1000,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "slideInLeft",
+               duration: 500,
+               delay: 300,
+               easing: "easeInOut",
+               stagger: 250,
+            },
+         },
       },
       {
          layout: "two-col",
@@ -345,6 +802,21 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
             "Company C: 95% user adoption",
          ],
          notes: "Social proof through customer success stories.",
+         animations: {
+            title: {
+               type: "slideInDown",
+               duration: 600,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "reveal",
+               duration: 400,
+               delay: 300,
+               easing: "easeInOut",
+               stagger: 200,
+            },
+         },
       },
       {
          layout: "quote",
@@ -352,6 +824,20 @@ const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
          quote: "This platform transformed how our team collaborates and delivers results.",
          author: "Sarah Johnson, CTO at TechCorp",
          notes: "End with a powerful customer testimonial.",
+         animations: {
+            title: {
+               type: "fadeIn",
+               duration: 800,
+               delay: 0,
+               easing: "easeOut",
+            },
+            bullets: {
+               type: "typewriter",
+               duration: 2500,
+               delay: 500,
+               easing: "easeInOut",
+            },
+         },
       },
    ],
 };
@@ -394,16 +880,49 @@ const formatLabels: Record<ExportFormat, string> = {
    pdf: "Download as PDF",
 };
 
+const imageCache = new Map<string, HTMLImageElement | null>();
+const pendingImageRequests = new Map<
+   string,
+   Promise<HTMLImageElement | null>
+>();
+
 async function loadSlideImage(url?: string): Promise<HTMLImageElement | null> {
    if (!url) return null;
 
-   return new Promise((resolve) => {
+   const isDataUrl = url.startsWith("data:");
+   if (!isDataUrl) {
+      if (imageCache.has(url)) {
+         return imageCache.get(url) ?? null;
+      }
+
+      if (pendingImageRequests.has(url)) {
+         return pendingImageRequests.get(url)!;
+      }
+   }
+
+   const request = new Promise<HTMLImageElement | null>((resolve) => {
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      if (!isDataUrl) {
+         img.crossOrigin = "anonymous";
+      }
+      const src = isDataUrl
+         ? url
+         : `${url}${url.includes("?") ? "&" : "?"}ts=${Date.now()}`;
+      img.src = src;
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
-      img.src = url;
+   }).then((result) => {
+      if (!isDataUrl) {
+         imageCache.set(url, result);
+         pendingImageRequests.delete(url);
+      }
+      return result;
    });
+
+   if (!isDataUrl) {
+      pendingImageRequests.set(url, request);
+   }
+   return request;
 }
 
 function fitText(
@@ -531,6 +1050,165 @@ function drawMetaHeader(
    ctx.restore();
 }
 
+function drawGeometricPattern(
+   ctx: CanvasRenderingContext2D,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+
+   // Draw geometric rectangles
+   const rectSize = 120;
+   const spacing = 200;
+
+   for (let x = 0; x < width + rectSize; x += spacing) {
+      for (let y = 0; y < height + rectSize; y += spacing) {
+         ctx.save();
+         ctx.globalAlpha = 0.08;
+         ctx.fillStyle = theme.accent;
+         ctx.fillRect(x, y, rectSize, rectSize * 0.6);
+
+         // Add smaller rectangles
+         ctx.globalAlpha = 0.05;
+         ctx.fillRect(x + 20, y + 20, rectSize * 0.3, rectSize * 0.2);
+         ctx.restore();
+      }
+   }
+
+   // Add diagonal lines
+   ctx.save();
+   ctx.strokeStyle = theme.accent;
+   ctx.lineWidth = 1;
+   ctx.globalAlpha = 0.1;
+
+   for (let i = 0; i < 8; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * 160, 0);
+      ctx.lineTo(i * 160 + 200, height);
+      ctx.stroke();
+   }
+   ctx.restore();
+   ctx.restore();
+}
+
+function drawMinimalPattern(
+   ctx: CanvasRenderingContext2D,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+
+   // Draw subtle grid
+   ctx.strokeStyle = theme.accent;
+   ctx.lineWidth = 0.5;
+   ctx.globalAlpha = 0.03;
+
+   const gridSize = 40;
+   for (let x = 0; x <= width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+   }
+
+   for (let y = 0; y <= height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+   }
+
+   // Add subtle corner accents
+   const cornerSize = 80;
+   ctx.globalAlpha = 0.05;
+   ctx.fillStyle = theme.accent;
+
+   // Top-left
+   ctx.fillRect(0, 0, cornerSize, 2);
+   ctx.fillRect(0, 0, 2, cornerSize);
+
+   // Top-right
+   ctx.fillRect(width - cornerSize, 0, cornerSize, 2);
+   ctx.fillRect(width - 2, 0, 2, cornerSize);
+
+   // Bottom-left
+   ctx.fillRect(0, height - 2, cornerSize, 2);
+   ctx.fillRect(0, height - cornerSize, 2, cornerSize);
+
+   // Bottom-right
+   ctx.fillRect(width - cornerSize, height - 2, cornerSize, 2);
+   ctx.fillRect(width - 2, height - cornerSize, 2, cornerSize);
+
+   ctx.restore();
+}
+
+function drawCreativePattern(
+   ctx: CanvasRenderingContext2D,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+
+   // Draw organic shapes
+   const shapes = [
+      { x: width * 0.1, y: height * 0.2, size: 150, rotation: 0.3 },
+      { x: width * 0.8, y: height * 0.1, size: 100, rotation: -0.2 },
+      { x: width * 0.2, y: height * 0.7, size: 120, rotation: 0.5 },
+      { x: width * 0.7, y: height * 0.8, size: 80, rotation: -0.4 },
+   ];
+
+   shapes.forEach((shape, index) => {
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = index % 2 === 0 ? theme.accent : theme.bullet;
+      ctx.translate(shape.x, shape.y);
+      ctx.rotate(shape.rotation);
+
+      // Draw organic blob
+      ctx.beginPath();
+      ctx.arc(0, 0, shape.size * 0.3, 0, Math.PI * 2);
+      ctx.arc(
+         shape.size * 0.2,
+         shape.size * 0.1,
+         shape.size * 0.2,
+         0,
+         Math.PI * 2
+      );
+      ctx.arc(
+         -shape.size * 0.1,
+         shape.size * 0.2,
+         shape.size * 0.25,
+         0,
+         Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.restore();
+   });
+
+   // Add flowing lines
+   ctx.strokeStyle = theme.accent;
+   ctx.lineWidth = 2;
+   ctx.globalAlpha = 0.1;
+
+   for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, height * 0.3 + i * 100);
+      ctx.quadraticCurveTo(
+         width * 0.5,
+         height * 0.1 + i * 50,
+         width,
+         height * 0.4 + i * 80
+      );
+      ctx.stroke();
+   }
+
+   ctx.restore();
+}
+
 function drawAccentShapes(
    ctx: CanvasRenderingContext2D,
    theme: ThemeConfig,
@@ -538,51 +1216,66 @@ function drawAccentShapes(
    height: number
 ) {
    ctx.save();
-   const gradient = ctx.createRadialGradient(
-      width * 0.78,
-      height * 0.18,
-      0,
-      width * 0.78,
-      height * 0.18,
-      width * 0.48
-   );
-   gradient.addColorStop(0, theme.accentSoft);
-   gradient.addColorStop(1, "rgba(56,189,248,0)");
-   ctx.fillStyle = gradient;
-   ctx.fillRect(0, 0, width, height);
 
-   const gradient2 = ctx.createRadialGradient(
-      width * 0.22,
-      height * 0.82,
-      0,
-      width * 0.22,
-      height * 0.82,
-      width * 0.45
-   );
-   gradient2.addColorStop(0, "rgba(147,51,234,0.18)");
-   gradient2.addColorStop(1, "rgba(147,51,234,0)");
-   ctx.fillStyle = gradient2;
-   ctx.fillRect(0, 0, width, height);
+   // Use theme-specific pattern
+   if (theme.backgroundPattern === "geometric") {
+      drawGeometricPattern(ctx, theme, width, height);
+   } else if (theme.backgroundPattern === "minimal") {
+      drawMinimalPattern(ctx, theme, width, height);
+   } else if (theme.backgroundPattern === "creative") {
+      drawCreativePattern(ctx, theme, width, height);
+   } else {
+      // Default pattern
+      const gradient = ctx.createRadialGradient(
+         width * 0.78,
+         height * 0.18,
+         0,
+         width * 0.78,
+         height * 0.18,
+         width * 0.48
+      );
+      gradient.addColorStop(0, theme.accentSoft);
+      gradient.addColorStop(1, "rgba(56,189,248,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
 
-   ctx.globalAlpha = 0.35;
-   drawRoundedRect(
-      ctx,
-      width * 0.12,
-      height * 0.18,
-      width * 0.16,
-      height * 0.12,
-      32,
-      theme.watermark
-   );
-   drawRoundedRect(
-      ctx,
-      width * 0.68,
-      height * 0.62,
-      width * 0.18,
-      height * 0.16,
-      42,
-      theme.watermark
-   );
+      const gradient2 = ctx.createRadialGradient(
+         width * 0.22,
+         height * 0.82,
+         0,
+         width * 0.22,
+         height * 0.82,
+         width * 0.45
+      );
+      gradient2.addColorStop(0, "rgba(147,51,234,0.18)");
+      gradient2.addColorStop(1, "rgba(147,51,234,0)");
+      ctx.fillStyle = gradient2;
+      ctx.fillRect(0, 0, width, height);
+   }
+
+   // Add watermark shapes for non-minimal themes
+   if (theme.layoutStyle !== "minimal") {
+      ctx.globalAlpha = 0.35;
+      drawRoundedRect(
+         ctx,
+         width * 0.12,
+         height * 0.18,
+         width * 0.16,
+         height * 0.12,
+         32,
+         theme.watermark
+      );
+      drawRoundedRect(
+         ctx,
+         width * 0.68,
+         height * 0.62,
+         width * 0.18,
+         height * 0.16,
+         42,
+         theme.watermark
+      );
+   }
+
    ctx.restore();
 }
 
@@ -593,32 +1286,93 @@ function drawBulletedList(
    y: number,
    maxWidth: number,
    lineHeight: number,
-   theme: ThemeConfig
+   theme: ThemeConfig,
+   options?: {
+      animation?: AnimationConfig;
+      animationProgress?: Record<string, number>;
+      bulletKeyPrefix?: string;
+      indexOffset?: number;
+      totalBulletCount?: number;
+   }
 ) {
    if (!bullets || bullets.length === 0) return y;
 
    const bulletIndent = 26;
-   bullets.forEach((bullet) => {
+   const animation = options?.animation;
+   const progressMap = options?.animationProgress ?? {};
+   const keyPrefix = options?.bulletKeyPrefix ?? "bullet-";
+   const indexOffset = options?.indexOffset ?? 0;
+   const totalBullets = options?.totalBulletCount ?? bullets.length;
+
+   bullets.forEach((bullet, index) => {
       if (!bullet.trim()) return;
-      const lines = wrapLines(ctx, bullet, maxWidth - bulletIndent);
-      if (lines.length === 0) return;
 
-      ctx.save();
-      ctx.fillStyle = theme.accent;
-      ctx.beginPath();
-      ctx.arc(x + 6, y + lineHeight / 2 - 2, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      const fullLines = wrapLines(ctx, bullet, maxWidth - bulletIndent);
+      if (fullLines.length === 0) {
+         return;
+      }
 
-      ctx.save();
-      ctx.fillStyle = theme.textSecondary;
-      ctx.textBaseline = "top";
-      lines.forEach((line, index) => {
-         ctx.fillText(line, x + bulletIndent, y + index * lineHeight);
-      });
-      ctx.restore();
+      const blockHeight = fullLines.length * lineHeight;
+      const bulletKey = `${keyPrefix}${index + indexOffset}`;
+      const directProgress = progressMap[bulletKey];
 
-      y += lineHeight * lines.length + 12;
+      let progress = directProgress;
+      if (animation?.type === "typewriter") {
+         const sequence = progressMap.typewriter ?? 0;
+         const relative = sequence * totalBullets - (index + indexOffset);
+         progress = clamp(relative, 0, 1);
+      } else if (progress === undefined) {
+         progress = progressMap.bullets;
+      }
+
+      const safeProgress = progress ?? 1;
+      if (safeProgress <= 0) {
+         y += blockHeight + 12;
+         return;
+      }
+
+      let displayText = bullet;
+      if (animation?.type === "typewriter" && safeProgress < 1) {
+         const characters = Math.max(
+            0,
+            Math.floor(bullet.length * safeProgress)
+         );
+         displayText = bullet.slice(0, characters);
+         if (characters === 0) {
+            y += blockHeight + 12;
+            return;
+         }
+      }
+
+      const displayLines =
+         animation?.type === "typewriter" && safeProgress < 1
+            ? wrapLines(ctx, displayText, maxWidth - bulletIndent)
+            : fullLines;
+
+      withAnimation(
+         ctx,
+         animation,
+         safeProgress,
+         { x, y, width: maxWidth, height: blockHeight },
+         () => {
+            ctx.save();
+            ctx.fillStyle = theme.accent;
+            ctx.beginPath();
+            ctx.arc(x + 6, y + lineHeight / 2 - 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = theme.textSecondary;
+            ctx.textBaseline = "top";
+            displayLines.forEach((line, lineIndex) => {
+               ctx.fillText(line, x + bulletIndent, y + lineIndex * lineHeight);
+            });
+            ctx.restore();
+         }
+      );
+
+      y += blockHeight + 12;
    });
    return y;
 }
@@ -629,7 +1383,8 @@ async function drawTitleSlide(
    theme: ThemeConfig,
    meta: DeckMeta,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "center";
@@ -645,15 +1400,38 @@ async function drawTitleSlide(
    ctx.fillStyle = theme.textPrimary;
    const titleLines = wrapLines(ctx, slide.title, maxWidth);
    const titleHeight = titleLines.length * titleSize * 1.12;
-   let y = (height - titleHeight) / 2;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, width / 2, y);
-      y += titleSize * 1.12;
-   });
+   const titleTop = (height - titleHeight) / 2;
+   let y = titleTop;
+   const titleAnimation = slide.animations?.title;
+   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
+   const maxLineWidth = Math.max(
+      ...titleLines.map((line) => ctx.measureText(line).width),
+      1
+   );
+
+   withAnimation(
+      ctx,
+      titleAnimation,
+      titleProgress,
+      {
+         x: width / 2 - maxLineWidth / 2,
+         y,
+         width: maxLineWidth,
+         height: titleHeight,
+      },
+      () => {
+         let currentY = y;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, width / 2, currentY);
+            currentY += titleSize * 1.12;
+         });
+      }
+   );
 
    ctx.font = `500 20px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.metaText;
-   ctx.fillText(meta.title, width / 2, y + 24);
+   const metaY = titleTop + titleHeight;
+   ctx.fillText(meta.title, width / 2, metaY + 24);
    ctx.restore();
 }
 
@@ -662,7 +1440,8 @@ async function drawTitleWithBullets(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "left";
@@ -679,13 +1458,30 @@ async function drawTitleWithBullets(
    ctx.font = `700 ${titleSize}px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textPrimary;
    const titleLines = wrapLines(ctx, slide.title, contentWidth);
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += titleSize * 1.12;
-   });
+   const titleHeight = titleLines.length * titleSize * 1.12;
+   const titleAnimation = slide.animations?.title;
+   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
 
-   cursorY += 30;
+   withAnimation(
+      ctx,
+      titleAnimation,
+      titleProgress,
+      {
+         x: paddingX,
+         y: top,
+         width: contentWidth,
+         height: titleHeight,
+      },
+      () => {
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += titleSize * 1.12;
+         });
+      }
+   );
+
+   let cursorY = top + titleHeight + 30;
    ctx.font = `500 28px ${BASE_FONT_STACK}`;
    drawBulletedList(
       ctx,
@@ -694,7 +1490,12 @@ async function drawTitleWithBullets(
       cursorY,
       contentWidth,
       36,
-      theme
+      theme,
+      {
+         animation: slide.animations?.bullets,
+         animationProgress,
+         totalBulletCount: slide.bullets?.length ?? 0,
+      }
    );
    ctx.restore();
 }
@@ -704,7 +1505,8 @@ async function drawTwoColumnSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "left";
@@ -716,13 +1518,25 @@ async function drawTwoColumnSlide(
    ctx.font = `700 54px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textPrimary;
    const titleLines = wrapLines(ctx, slide.title, contentWidth);
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += 54 * 1.1;
-   });
+   const titleHeight = titleLines.length * 54 * 1.1;
+   const titleAnimation = slide.animations?.title;
+   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
 
-   cursorY += 18;
+   withAnimation(
+      ctx,
+      titleAnimation,
+      titleProgress,
+      { x: paddingX, y: top, width: contentWidth, height: titleHeight },
+      () => {
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += 54 * 1.1;
+         });
+      }
+   );
+
+   let cursorY = top + titleHeight + 18;
 
    const columnGap = 48;
    const columnWidth = (contentWidth - columnGap) * 0.55;
@@ -734,7 +1548,12 @@ async function drawTwoColumnSlide(
       cursorY,
       columnWidth,
       34,
-      theme
+      theme,
+      {
+         animation: slide.animations?.bullets,
+         animationProgress,
+         totalBulletCount: slide.bullets?.length ?? 0,
+      }
    );
 
    const notePanelX = paddingX + columnWidth + columnGap;
@@ -776,7 +1595,8 @@ async function drawImageLeftSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textBaseline = "top";
@@ -792,64 +1612,80 @@ async function drawImageLeftSlide(
    const mediaItem = slide.media?.find((m) => m.kind === "image");
    const image = await loadSlideImage(mediaItem?.url);
 
-   drawRoundedRect(
-      ctx,
-      imageX - 12,
-      imageY - 12,
-      imageWidth + 24,
-      imageHeight + 24,
-      34,
-      theme.panel,
-      theme.panelStroke,
-      1
-   );
+   const imageAnimation = slide.animations?.image;
+   const imageProgress = animationProgress?.image ?? (imageAnimation ? 0 : 1);
 
-   if (image) {
-      ctx.save();
-      const radius = 28;
-      ctx.beginPath();
-      ctx.moveTo(imageX + radius, imageY);
-      ctx.lineTo(imageX + imageWidth - radius, imageY);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY,
-         imageX + imageWidth,
-         imageY + radius
-      );
-      ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY + imageHeight,
-         imageX + imageWidth - radius,
-         imageY + imageHeight
-      );
-      ctx.lineTo(imageX + radius, imageY + imageHeight);
-      ctx.quadraticCurveTo(
-         imageX,
-         imageY + imageHeight,
-         imageX,
-         imageY + imageHeight - radius
-      );
-      ctx.lineTo(imageX, imageY + radius);
-      ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-      ctx.restore();
-   } else {
-      ctx.save();
-      ctx.fillStyle = theme.accentSoft;
-      ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
-      ctx.fillStyle = theme.textSecondary;
-      ctx.font = `500 18px ${BASE_FONT_STACK}`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-         mediaItem?.alt ?? "Image unavailable",
-         imageX + imageWidth / 2,
-         imageY + imageHeight / 2 - 12
-      );
-      ctx.restore();
-   }
+   withAnimation(
+      ctx,
+      imageAnimation,
+      imageProgress,
+      {
+         x: imageX - 12,
+         y: imageY - 12,
+         width: imageWidth + 24,
+         height: imageHeight + 24,
+      },
+      () => {
+         drawRoundedRect(
+            ctx,
+            imageX - 12,
+            imageY - 12,
+            imageWidth + 24,
+            imageHeight + 24,
+            34,
+            theme.panel,
+            theme.panelStroke,
+            1
+         );
+
+         if (image) {
+            ctx.save();
+            const radius = 28;
+            ctx.beginPath();
+            ctx.moveTo(imageX + radius, imageY);
+            ctx.lineTo(imageX + imageWidth - radius, imageY);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY,
+               imageX + imageWidth,
+               imageY + radius
+            );
+            ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY + imageHeight,
+               imageX + imageWidth - radius,
+               imageY + imageHeight
+            );
+            ctx.lineTo(imageX + radius, imageY + imageHeight);
+            ctx.quadraticCurveTo(
+               imageX,
+               imageY + imageHeight,
+               imageX,
+               imageY + imageHeight - radius
+            );
+            ctx.lineTo(imageX, imageY + radius);
+            ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+            ctx.restore();
+         } else {
+            ctx.save();
+            ctx.fillStyle = theme.accentSoft;
+            ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
+            ctx.fillStyle = theme.textSecondary;
+            ctx.font = `500 18px ${BASE_FONT_STACK}`;
+            ctx.textAlign = "center";
+            ctx.fillText(
+               mediaItem?.alt ?? "Image unavailable",
+               imageX + imageWidth / 2,
+               imageY + imageHeight / 2 - 12
+            );
+            ctx.restore();
+         }
+      }
+   );
 
    const contentX = imageX + imageWidth + 72;
    const contentWidth = width - contentX - paddingX;
@@ -857,13 +1693,30 @@ async function drawImageLeftSlide(
    ctx.fillStyle = theme.textPrimary;
    ctx.font = `700 52px ${BASE_FONT_STACK}`;
    const titleLines = wrapLines(ctx, slide.title, contentWidth);
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, contentX, cursorY);
-      cursorY += 52 * 1.12;
-   });
+   const titleHeight = titleLines.length * 52 * 1.12;
+   const titleAnimation = slide.animations?.title;
+   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
 
-   cursorY += 20;
+   withAnimation(
+      ctx,
+      titleAnimation,
+      titleProgress,
+      {
+         x: contentX,
+         y: top,
+         width: contentWidth,
+         height: titleHeight,
+      },
+      () => {
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, contentX, cursorY);
+            cursorY += 52 * 1.12;
+         });
+      }
+   );
+
+   let cursorY = top + titleHeight + 20;
    ctx.font = `500 28px ${BASE_FONT_STACK}`;
    drawBulletedList(
       ctx,
@@ -872,7 +1725,12 @@ async function drawImageLeftSlide(
       cursorY,
       contentWidth,
       36,
-      theme
+      theme,
+      {
+         animation: slide.animations?.bullets,
+         animationProgress,
+         totalBulletCount: slide.bullets?.length ?? 0,
+      }
    );
 
    ctx.restore();
@@ -883,7 +1741,8 @@ async function drawRoadmapSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "left";
@@ -896,11 +1755,25 @@ async function drawRoadmapSlide(
    ctx.font = `700 56px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textPrimary;
    const titleLines = wrapLines(ctx, slide.title, contentWidth);
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += 56 * 1.08;
-   });
+   const titleHeight = titleLines.length * 56 * 1.08;
+   const titleAnimation = slide.animations?.title;
+   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
+
+   withAnimation(
+      ctx,
+      titleAnimation,
+      titleProgress,
+      { x: paddingX, y: top, width: contentWidth, height: titleHeight },
+      () => {
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += 56 * 1.08;
+         });
+      }
+   );
+
+   let cursorY = top + titleHeight;
 
    const steps = slide.bullets ?? [];
    const timelineTop = cursorY + 32;
@@ -921,41 +1794,60 @@ async function drawRoadmapSlide(
 
    ctx.font = `500 24px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textSecondary;
+   const bulletAnimation = slide.animations?.bullets;
+   const baseProgress = animationProgress?.bullets ?? 1;
    steps.forEach((step, index) => {
       const y = timelineTop + stepGap * index;
-      ctx.save();
-      ctx.fillStyle = theme.accent;
-      ctx.beginPath();
-      ctx.arc(paddingX + 6, y, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      const progressKey = `bullet-${index}`;
+      const progress =
+         animationProgress?.[progressKey] ??
+         (bulletAnimation?.type === "stagger" ? 0 : baseProgress);
 
-      const badgeWidth = 120;
-      drawRoundedRect(
+      withAnimation(
          ctx,
-         paddingX + 26,
-         y - 16,
-         badgeWidth,
-         32,
-         14,
-         theme.panel,
-         theme.panelStroke,
-         1
-      );
-      ctx.save();
-      ctx.fillStyle = theme.metaText;
-      ctx.font = `600 14px ${BASE_FONT_STACK}`;
-      ctx.fillText(`Phase ${index + 1}`, paddingX + 26 + badgeWidth / 2, y - 8);
-      ctx.restore();
+         bulletAnimation,
+         progress,
+         { x: paddingX, y: y - 32, width: contentWidth, height: 64 },
+         () => {
+            ctx.save();
+            ctx.fillStyle = theme.accent;
+            ctx.beginPath();
+            ctx.arc(paddingX + 6, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
 
-      const stepX = paddingX + 26 + badgeWidth + 24;
-      const stepWidth = width - stepX - paddingX;
-      const lines = wrapLines(ctx, step, stepWidth);
-      let textY = y - 10;
-      lines.forEach((line) => {
-         ctx.fillText(line, stepX, textY);
-         textY += 30;
-      });
+            const badgeWidth = 120;
+            drawRoundedRect(
+               ctx,
+               paddingX + 26,
+               y - 16,
+               badgeWidth,
+               32,
+               14,
+               theme.panel,
+               theme.panelStroke,
+               1
+            );
+            ctx.save();
+            ctx.fillStyle = theme.metaText;
+            ctx.font = `600 14px ${BASE_FONT_STACK}`;
+            ctx.fillText(
+               `Phase ${index + 1}`,
+               paddingX + 26 + badgeWidth / 2,
+               y - 8
+            );
+            ctx.restore();
+
+            const stepX = paddingX + 26 + badgeWidth + 24;
+            const stepWidth = width - stepX - paddingX;
+            const lines = wrapLines(ctx, step, stepWidth);
+            let textY = y - 10;
+            lines.forEach((line) => {
+               ctx.fillText(line, stepX, textY);
+               textY += 30;
+            });
+         }
+      );
    });
 
    ctx.restore();
@@ -966,7 +1858,8 @@ async function drawQuoteSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "center";
@@ -978,12 +1871,42 @@ async function drawQuoteSlide(
    ctx.font = `italic 48px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textPrimary;
    const quoteText = slide.quote || "Your quote here";
-   const quoteLines = wrapLines(ctx, quoteText, width - paddingX * 2);
-   let cursorY = top;
-   quoteLines.forEach((line) => {
-      ctx.fillText(line, width / 2, cursorY);
-      cursorY += 56;
-   });
+   const typewriter = animationProgress?.typewriter;
+   const typedText =
+      typewriter !== undefined
+         ? quoteText.slice(
+              0,
+              Math.max(0, Math.floor(quoteText.length * typewriter))
+           )
+         : quoteText;
+   const quoteLines = wrapLines(ctx, typedText, width - paddingX * 2);
+   const quoteHeight = quoteLines.length * 56;
+   const quoteAnimation = slide.animations?.title ?? slide.animations?.bullets;
+   const quoteProgress =
+      (quoteAnimation?.type === "typewriter" && typewriter !== undefined
+         ? typewriter
+         : animationProgress?.title) ?? (quoteAnimation ? 0 : 1);
+
+   withAnimation(
+      ctx,
+      quoteAnimation,
+      quoteProgress,
+      {
+         x: paddingX,
+         y: top,
+         width: width - paddingX * 2,
+         height: quoteHeight,
+      },
+      () => {
+         let cursorY = top;
+         quoteLines.forEach((line) => {
+            ctx.fillText(line, width / 2, cursorY);
+            cursorY += 56;
+         });
+      }
+   );
+
+   let cursorY = top + quoteHeight;
 
    // Quote marks
    ctx.font = `bold 120px ${BASE_FONT_STACK}`;
@@ -999,7 +1922,15 @@ async function drawQuoteSlide(
       cursorY += 40;
       ctx.font = `600 24px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.accent;
-      ctx.fillText("— " + slide.author, width / 2, cursorY);
+      withAnimation(
+         ctx,
+         quoteAnimation,
+         quoteProgress,
+         { x: width / 2 - 200, y: cursorY, width: 400, height: 28 },
+         () => {
+            ctx.fillText("— " + slide.author, width / 2, cursorY);
+         }
+      );
    }
 
    ctx.restore();
@@ -1010,7 +1941,8 @@ async function drawStatsSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "center";
@@ -1020,50 +1952,63 @@ async function drawStatsSlide(
 
    const stats = slide.stats || [];
    const cols = 2;
-   const rows = Math.ceil(stats.length / cols);
    const cardWidth = (width - paddingX * 2 - 40) / cols;
    const cardHeight = 160;
+   const bulletAnimation = slide.animations?.bullets;
+   const baseProgress = animationProgress?.bullets ?? 1;
 
    stats.forEach((stat, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
       const x = paddingX + col * (cardWidth + 40);
       const y = top + row * (cardHeight + 30);
+      const progressKey = `bullet-${index}`;
+      const progress =
+         animationProgress?.[progressKey] ??
+         (bulletAnimation?.type === "stagger" ? 0 : baseProgress);
 
-      // Card background
-      drawRoundedRect(
+      withAnimation(
          ctx,
-         x,
-         y,
-         cardWidth,
-         cardHeight,
-         20,
-         theme.panel,
-         theme.panelStroke,
-         1
+         bulletAnimation,
+         progress,
+         { x, y, width: cardWidth, height: cardHeight },
+         () => {
+            drawRoundedRect(
+               ctx,
+               x,
+               y,
+               cardWidth,
+               cardHeight,
+               20,
+               theme.panel,
+               theme.panelStroke,
+               1
+            );
+
+            ctx.font = `bold 48px ${BASE_FONT_STACK}`;
+            ctx.fillStyle = theme.accent;
+            ctx.fillText(stat.value, x + cardWidth / 2, y + 30);
+
+            ctx.font = `600 18px ${BASE_FONT_STACK}`;
+            ctx.fillStyle = theme.textPrimary;
+            ctx.fillText(stat.label, x + cardWidth / 2, y + 90);
+
+            if (stat.description) {
+               ctx.font = `400 14px ${BASE_FONT_STACK}`;
+               ctx.fillStyle = theme.metaText;
+               const descLines = wrapLines(
+                  ctx,
+                  stat.description,
+                  cardWidth - 32
+               );
+               let descY = y + 115;
+               descLines.forEach((line) => {
+                  ctx.fillText(line, x + cardWidth / 2, descY);
+                  descY += 18;
+               });
+            }
+         }
       );
-
-      // Value
-      ctx.font = `bold 48px ${BASE_FONT_STACK}`;
-      ctx.fillStyle = theme.accent;
-      ctx.fillText(stat.value, x + cardWidth / 2, y + 30);
-
-      // Label
-      ctx.font = `600 18px ${BASE_FONT_STACK}`;
-      ctx.fillStyle = theme.textPrimary;
-      ctx.fillText(stat.label, x + cardWidth / 2, y + 90);
-
-      // Description
-      if (stat.description) {
-         ctx.font = `400 14px ${BASE_FONT_STACK}`;
-         ctx.fillStyle = theme.metaText;
-         const descLines = wrapLines(ctx, stat.description, cardWidth - 32);
-         let descY = y + 115;
-         descLines.forEach((line) => {
-            ctx.fillText(line, x + cardWidth / 2, descY);
-            descY += 18;
-         });
-      }
    });
 
    ctx.restore();
@@ -1074,7 +2019,8 @@ async function drawComparisonSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "left";
@@ -1090,41 +2036,90 @@ async function drawComparisonSlide(
    // Left column
    ctx.font = `700 32px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textPrimary;
-   ctx.fillText(comparison.left.title, paddingX, top);
+   const leftAnimation = slide.animations?.bullets;
+   const leftProgress = animationProgress?.bullets ?? 1;
+   const leftItems = comparison.left.items;
+   const leftCount = leftItems.length;
+
+   withAnimation(
+      ctx,
+      slide.animations?.title,
+      animationProgress?.title ?? (slide.animations?.title ? 0 : 1),
+      { x: paddingX, y: top, width: columnWidth, height: 48 },
+      () => {
+         ctx.fillText(comparison.left.title, paddingX, top);
+      }
+   );
 
    ctx.font = `500 24px ${BASE_FONT_STACK}`;
    let cursorY = top + 50;
-   comparison.left.items.forEach((item) => {
-      ctx.save();
-      ctx.fillStyle = "#ef4444"; // Red for "before"
-      ctx.beginPath();
-      ctx.arc(paddingX + 12, cursorY + 12, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+   leftItems.forEach((item, index) => {
+      const progressKey = `bullet-${index}`;
+      const progress =
+         animationProgress?.[progressKey] ??
+         (leftAnimation?.type === "stagger" ? 0 : leftProgress);
 
-      ctx.fillStyle = theme.textSecondary;
-      ctx.fillText(item, paddingX + 30, cursorY);
+      withAnimation(
+         ctx,
+         leftAnimation,
+         progress,
+         { x: paddingX, y: cursorY, width: columnWidth, height: 32 },
+         () => {
+            ctx.save();
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(paddingX + 12, cursorY + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.fillStyle = theme.textSecondary;
+            ctx.fillText(item, paddingX + 30, cursorY);
+         }
+      );
+
       cursorY += 36;
    });
 
    // Right column
    const rightX = paddingX + columnWidth + 60;
-   ctx.font = `700 32px ${BASE_FONT_STACK}`;
-   ctx.fillStyle = theme.textPrimary;
-   ctx.fillText(comparison.right.title, rightX, top);
+   withAnimation(
+      ctx,
+      slide.animations?.title,
+      animationProgress?.title ?? (slide.animations?.title ? 0 : 1),
+      { x: rightX, y: top, width: columnWidth, height: 48 },
+      () => {
+         ctx.font = `700 32px ${BASE_FONT_STACK}`;
+         ctx.fillStyle = theme.textPrimary;
+         ctx.fillText(comparison.right.title, rightX, top);
+      }
+   );
 
    ctx.font = `500 24px ${BASE_FONT_STACK}`;
    cursorY = top + 50;
-   comparison.right.items.forEach((item) => {
-      ctx.save();
-      ctx.fillStyle = theme.accent; // Theme color for "after"
-      ctx.beginPath();
-      ctx.arc(rightX + 12, cursorY + 12, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+   comparison.right.items.forEach((item, index) => {
+      const progressKey = `bullet-${index + leftCount}`;
+      const progress =
+         animationProgress?.[progressKey] ??
+         (leftAnimation?.type === "stagger" ? 0 : leftProgress);
 
-      ctx.fillStyle = theme.textSecondary;
-      ctx.fillText(item, rightX + 30, cursorY);
+      withAnimation(
+         ctx,
+         leftAnimation,
+         progress,
+         { x: rightX, y: cursorY, width: columnWidth, height: 32 },
+         () => {
+            ctx.save();
+            ctx.fillStyle = theme.accent;
+            ctx.beginPath();
+            ctx.arc(rightX + 12, cursorY + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.fillStyle = theme.textSecondary;
+            ctx.fillText(item, rightX + 30, cursorY);
+         }
+      );
+
       cursorY += 36;
    });
 
@@ -1136,7 +2131,8 @@ async function drawImageRightSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textBaseline = "top";
@@ -1152,64 +2148,80 @@ async function drawImageRightSlide(
    const mediaItem = slide.media?.find((m) => m.kind === "image");
    const image = await loadSlideImage(mediaItem?.url);
 
-   drawRoundedRect(
-      ctx,
-      imageX - 12,
-      imageY - 12,
-      imageWidth + 24,
-      imageHeight + 24,
-      34,
-      theme.panel,
-      theme.panelStroke,
-      1
-   );
+   const imageAnimation = slide.animations?.image;
+   const imageProgress = animationProgress?.image ?? (imageAnimation ? 0 : 1);
 
-   if (image) {
-      ctx.save();
-      const radius = 28;
-      ctx.beginPath();
-      ctx.moveTo(imageX + radius, imageY);
-      ctx.lineTo(imageX + imageWidth - radius, imageY);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY,
-         imageX + imageWidth,
-         imageY + radius
-      );
-      ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY + imageHeight,
-         imageX + imageWidth - radius,
-         imageY + imageHeight
-      );
-      ctx.lineTo(imageX + radius, imageY + imageHeight);
-      ctx.quadraticCurveTo(
-         imageX,
-         imageY + imageHeight,
-         imageX,
-         imageY + imageHeight - radius
-      );
-      ctx.lineTo(imageX, imageY + radius);
-      ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-      ctx.restore();
-   } else {
-      ctx.save();
-      ctx.fillStyle = theme.accentSoft;
-      ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
-      ctx.fillStyle = theme.textSecondary;
-      ctx.font = `500 18px ${BASE_FONT_STACK}`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-         mediaItem?.alt ?? "Image unavailable",
-         imageX + imageWidth / 2,
-         imageY + imageHeight / 2 - 12
-      );
-      ctx.restore();
-   }
+   withAnimation(
+      ctx,
+      imageAnimation,
+      imageProgress,
+      {
+         x: imageX - 12,
+         y: imageY - 12,
+         width: imageWidth + 24,
+         height: imageHeight + 24,
+      },
+      () => {
+         drawRoundedRect(
+            ctx,
+            imageX - 12,
+            imageY - 12,
+            imageWidth + 24,
+            imageHeight + 24,
+            34,
+            theme.panel,
+            theme.panelStroke,
+            1
+         );
+
+         if (image) {
+            ctx.save();
+            const radius = 28;
+            ctx.beginPath();
+            ctx.moveTo(imageX + radius, imageY);
+            ctx.lineTo(imageX + imageWidth - radius, imageY);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY,
+               imageX + imageWidth,
+               imageY + radius
+            );
+            ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY + imageHeight,
+               imageX + imageWidth - radius,
+               imageY + imageHeight
+            );
+            ctx.lineTo(imageX + radius, imageY + imageHeight);
+            ctx.quadraticCurveTo(
+               imageX,
+               imageY + imageHeight,
+               imageX,
+               imageY + imageHeight - radius
+            );
+            ctx.lineTo(imageX, imageY + radius);
+            ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+            ctx.restore();
+         } else {
+            ctx.save();
+            ctx.fillStyle = theme.accentSoft;
+            ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
+            ctx.fillStyle = theme.textSecondary;
+            ctx.font = `500 18px ${BASE_FONT_STACK}`;
+            ctx.textAlign = "center";
+            ctx.fillText(
+               mediaItem?.alt ?? "Image unavailable",
+               imageX + imageWidth / 2,
+               imageY + imageHeight / 2 - 12
+            );
+            ctx.restore();
+         }
+      }
+   );
 
    const contentX = paddingX;
    const contentWidth = width - imageX - 72;
@@ -1217,13 +2229,30 @@ async function drawImageRightSlide(
    ctx.fillStyle = theme.textPrimary;
    ctx.font = `700 52px ${BASE_FONT_STACK}`;
    const titleLines = wrapLines(ctx, slide.title, contentWidth);
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, contentX, cursorY);
-      cursorY += 52 * 1.12;
-   });
+   const titleHeight = titleLines.length * 52 * 1.12;
+   const titleAnimation = slide.animations?.title;
+   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
 
-   cursorY += 20;
+   withAnimation(
+      ctx,
+      titleAnimation,
+      titleProgress,
+      {
+         x: contentX,
+         y: top,
+         width: contentWidth,
+         height: titleHeight,
+      },
+      () => {
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, contentX, cursorY);
+            cursorY += 52 * 1.12;
+         });
+      }
+   );
+
+   let cursorY = top + titleHeight + 20;
    ctx.font = `500 28px ${BASE_FONT_STACK}`;
    drawBulletedList(
       ctx,
@@ -1232,7 +2261,12 @@ async function drawImageRightSlide(
       cursorY,
       contentWidth,
       36,
-      theme
+      theme,
+      {
+         animation: slide.animations?.bullets,
+         animationProgress,
+         totalBulletCount: slide.bullets?.length ?? 0,
+      }
    );
 
    ctx.restore();
@@ -1243,7 +2277,8 @@ async function drawThreeColumnSlide(
    slide: SlideWithStatus,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.textAlign = "left";
@@ -1256,13 +2291,25 @@ async function drawThreeColumnSlide(
    ctx.font = `700 44px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textPrimary;
    const titleLines = wrapLines(ctx, slide.title, contentWidth);
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += 44 * 1.1;
-   });
+   const titleHeight = titleLines.length * 44 * 1.1;
+   const titleAnimation = slide.animations?.title;
+   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
 
-   cursorY += 30;
+   withAnimation(
+      ctx,
+      titleAnimation,
+      titleProgress,
+      { x: paddingX, y: top, width: contentWidth, height: titleHeight },
+      () => {
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += 44 * 1.1;
+         });
+      }
+   );
+
+   const cursorY = top + titleHeight + 30;
 
    const bullets = slide.bullets || [];
    const bulletsPerColumn = Math.ceil(bullets.length / 3);
@@ -1282,7 +2329,13 @@ async function drawThreeColumnSlide(
          cursorY,
          columnWidth,
          32,
-         theme
+         theme,
+         {
+            animation: slide.animations?.bullets,
+            animationProgress,
+            indexOffset: col * bulletsPerColumn,
+            totalBulletCount: bullets.length,
+         }
       );
    }
 
@@ -1295,55 +2348,152 @@ async function drawSlide(
    meta: DeckMeta,
    theme: ThemeConfig,
    width: number,
-   height: number
+   height: number,
+   animationProgress?: Record<string, number>
 ) {
    ctx.save();
    ctx.setTransform(1, 0, 0, 1, 0, 0);
    ctx.clearRect(0, 0, width, height);
-   ctx.fillStyle = theme.background;
-   ctx.fillRect(0, 0, width, height);
-   const bgGradient = ctx.createLinearGradient(0, 0, width, height);
-   bgGradient.addColorStop(0, theme.gradient[0]);
-   bgGradient.addColorStop(1, theme.gradient[1]);
-   ctx.fillStyle = bgGradient;
-   ctx.fillRect(0, 0, width, height);
+   const backgroundAnimation = slide.animations?.background;
+   const backgroundProgress =
+      animationProgress?.background ?? (backgroundAnimation ? 0 : 1);
 
-   drawAccentShapes(ctx, theme, width, height);
-   drawMetaHeader(ctx, slide, meta, theme, width);
+   const paintBackground = () => {
+      ctx.fillStyle = theme.background;
+      ctx.fillRect(0, 0, width, height);
+      const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+      bgGradient.addColorStop(0, theme.gradient[0]);
+      bgGradient.addColorStop(1, theme.gradient[1]);
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, width, height);
+
+      drawAccentShapes(ctx, theme, width, height);
+      drawMetaHeader(ctx, slide, meta, theme, width);
+   };
+
+   if (backgroundAnimation) {
+      withAnimation(
+         ctx,
+         backgroundAnimation,
+         backgroundProgress,
+         { x: 0, y: 0, width, height },
+         paintBackground
+      );
+   } else {
+      paintBackground();
+   }
 
    switch (slide.layout) {
       case "title":
-         await drawTitleSlide(ctx, slide, theme, meta, width, height);
+         await drawTitleSlide(
+            ctx,
+            slide,
+            theme,
+            meta,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "title-bullets":
-         await drawTitleWithBullets(ctx, slide, theme, width, height);
+         await drawTitleWithBullets(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "two-col":
-         await drawTwoColumnSlide(ctx, slide, theme, width, height);
+         await drawTwoColumnSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "image-left":
-         await drawImageLeftSlide(ctx, slide, theme, width, height);
+         await drawImageLeftSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "image-right":
-         await drawImageRightSlide(ctx, slide, theme, width, height);
+         await drawImageRightSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "roadmap":
-         await drawRoadmapSlide(ctx, slide, theme, width, height);
+         await drawRoadmapSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "quote":
-         await drawQuoteSlide(ctx, slide, theme, width, height);
+         await drawQuoteSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "stats":
-         await drawStatsSlide(ctx, slide, theme, width, height);
+         await drawStatsSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "comparison":
-         await drawComparisonSlide(ctx, slide, theme, width, height);
+         await drawComparisonSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       case "three-col":
-         await drawThreeColumnSlide(ctx, slide, theme, width, height);
+         await drawThreeColumnSlide(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
       default:
-         await drawTitleWithBullets(ctx, slide, theme, width, height);
+         await drawTitleWithBullets(
+            ctx,
+            slide,
+            theme,
+            width,
+            height,
+            animationProgress
+         );
          break;
    }
 
@@ -1354,7 +2504,10 @@ async function renderSlideToCanvas(
    canvas: HTMLCanvasElement,
    slide: SlideWithStatus,
    meta: DeckMeta,
-   options: { pixelRatio?: number } = {}
+   options: {
+      pixelRatio?: number;
+      animationProgress?: Record<string, number>;
+   } = {}
 ) {
    const ctx = canvas.getContext("2d");
    if (!ctx) return;
@@ -1383,7 +2536,15 @@ async function renderSlideToCanvas(
    }
 
    const theme = themePalette[meta.theme] ?? themePalette.dark;
-   await drawSlide(ctx, slide, meta, theme, SLIDE_WIDTH, SLIDE_HEIGHT);
+   await drawSlide(
+      ctx,
+      slide,
+      meta,
+      theme,
+      SLIDE_WIDTH,
+      SLIDE_HEIGHT,
+      options.animationProgress
+   );
 }
 
 async function renderSlideToImage(
@@ -2041,74 +3202,141 @@ function downloadBlob(blob: Blob, filename: string) {
 const SlidePreview = ({
    slide,
    meta,
+   animationTrigger,
+   onAnimationStart,
+   onAnimationComplete,
 }: {
    slide: SlideWithStatus;
    meta: DeckMeta;
+   animationTrigger: number;
+   onAnimationStart?: () => void;
+   onAnimationComplete?: () => void;
 }) => {
    const canvasRef = useRef<HTMLCanvasElement | null>(null);
    const containerRef = useRef<HTMLDivElement | null>(null);
+   const pixelRatioRef = useRef(1);
 
    useEffect(() => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (!canvas || !container) return;
-      let cancelled = false;
 
       const updateCanvasSize = () => {
          const rect = container.getBoundingClientRect();
-         const pixelRatio =
+         const devicePixelRatio =
             typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+         pixelRatioRef.current = devicePixelRatio;
 
-         // Calculate the scale to fit the canvas in the container while maintaining aspect ratio
          const containerAspectRatio = rect.width / rect.height;
          const slideAspectRatio = SLIDE_WIDTH / SLIDE_HEIGHT;
 
-         let scale: number;
-         if (containerAspectRatio > slideAspectRatio) {
-            // Container is wider, scale based on height
-            scale = rect.height / SLIDE_HEIGHT;
-         } else {
-            // Container is taller, scale based on width
-            scale = rect.width / SLIDE_WIDTH;
-         }
+         const scale =
+            containerAspectRatio > slideAspectRatio
+               ? rect.height / SLIDE_HEIGHT
+               : rect.width / SLIDE_WIDTH;
 
-         const scaledWidth = SLIDE_WIDTH * scale;
-         const scaledHeight = SLIDE_HEIGHT * scale;
-
-         // Set canvas display size
-         canvas.style.width = `${scaledWidth}px`;
-         canvas.style.height = `${scaledHeight}px`;
-
-         // Set canvas internal resolution
-         canvas.width = SLIDE_WIDTH * pixelRatio;
-         canvas.height = SLIDE_HEIGHT * pixelRatio;
+         canvas.style.width = `${SLIDE_WIDTH * scale}px`;
+         canvas.style.height = `${SLIDE_HEIGHT * scale}px`;
+         canvas.width = SLIDE_WIDTH * devicePixelRatio;
+         canvas.height = SLIDE_HEIGHT * devicePixelRatio;
       };
 
       updateCanvasSize();
+      window.addEventListener("resize", updateCanvasSize);
+      return () => window.removeEventListener("resize", updateCanvasSize);
+   }, [slide, meta]);
 
-      (async () => {
-         const pixelRatio =
-            typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+   const timeline = useMemo(() => buildSlideTimeline(slide), [slide]);
 
-         await renderSlideToCanvas(canvas, slide, meta, {
+   useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      if (animationTrigger < 0) {
+         void renderSlideToCanvas(canvas, slide, meta, {
             pixelRatio: 1,
          });
-         if (cancelled) return;
-      })();
+         return;
+      }
 
-      // Listen for window resize
-      const handleResize = () => {
-         if (cancelled) return;
-         updateCanvasSize();
+      let animationFrame: number | null = null;
+      let cancelled = false;
+      let hasCompleted = false;
+      let startTimestamp: number | null = null;
+      let renderQueue = Promise.resolve();
+
+      const enqueueRender = (progress?: Record<string, number>) => {
+         renderQueue = renderQueue.then(() => {
+            if (cancelled) return;
+            return renderSlideToCanvas(canvas, slide, meta, {
+               pixelRatio: 1,
+               animationProgress: progress,
+            });
+         });
+         return renderQueue;
       };
 
-      window.addEventListener("resize", handleResize);
+      const playAnimation = () => {
+         if (timeline.entries.length === 0 || timeline.totalDuration === 0) {
+            enqueueRender().then(() => {
+               if (!cancelled) {
+                  hasCompleted = true;
+                  onAnimationComplete?.();
+               }
+            });
+            return;
+         }
+
+         onAnimationStart?.();
+
+         const step = (timestamp: number) => {
+            if (cancelled) return;
+            if (startTimestamp === null) {
+               startTimestamp = timestamp;
+            }
+
+            const elapsed = timestamp - startTimestamp;
+            const progressMap = computeTimelineProgress(timeline, elapsed);
+
+            enqueueRender(progressMap).then(() => {
+               if (cancelled) return;
+               if (elapsed < timeline.totalDuration) {
+                  animationFrame = requestAnimationFrame(step);
+               } else if (!hasCompleted) {
+                  hasCompleted = true;
+                  onAnimationComplete?.();
+               }
+            });
+         };
+
+         animationFrame = requestAnimationFrame(step);
+      };
+
+      if (timeline.entries.length > 0) {
+         enqueueRender(computeTimelineProgress(timeline, 0));
+      } else {
+         enqueueRender();
+      }
+
+      playAnimation();
 
       return () => {
          cancelled = true;
-         window.removeEventListener("resize", handleResize);
+         if (animationFrame !== null) {
+            cancelAnimationFrame(animationFrame);
+         }
+         if (!hasCompleted) {
+            onAnimationComplete?.();
+         }
       };
-   }, [slide, meta]);
+   }, [
+      slide,
+      meta,
+      timeline,
+      animationTrigger,
+      onAnimationStart,
+      onAnimationComplete,
+   ]);
 
    return (
       <div
@@ -2129,6 +3357,8 @@ export default function SlidesWorkspacePage() {
    const [isProcessing, setIsProcessing] = useState(false);
    const [isDockOpen, setIsDockOpen] = useState(true);
    const [editScope, setEditScope] = useState<"slide" | "all">("slide");
+   const [animationTrigger, setAnimationTrigger] = useState(-1);
+   const [isAnimating, setIsAnimating] = useState(false);
    const [recentNotes, setRecentNotes] =
       useState<RecentNote[]>(defaultRecentNotes);
    const [slideNotes, setSlideNotes] = useState<Record<number, RecentNote[]>>(
@@ -2443,6 +3673,12 @@ export default function SlidesWorkspacePage() {
       }
    }, [activeSlideIndex, validActiveSlideIndex]);
 
+   // Trigger animations when slide changes
+   useEffect(() => {
+      if (!activeSlide) return;
+      setAnimationTrigger((previous) => previous + 1);
+   }, [activeSlide]);
+
    const currentMeta = useMemo(() => {
       if (slideData && slideData.slides) {
          return {
@@ -2660,6 +3896,14 @@ export default function SlidesWorkspacePage() {
       voiceError,
    ]);
 
+   const handleAnimationStart = useCallback(() => {
+      setIsAnimating(true);
+   }, []);
+
+   const handleAnimationComplete = useCallback(() => {
+      setIsAnimating(false);
+   }, []);
+
    const handlePrevSlide = () => {
       if (!isFirstSlide) {
          setActiveSlideIndex((prev) => prev - 1);
@@ -2808,6 +4052,9 @@ export default function SlidesWorkspacePage() {
                         key={`presentation-${presentationKey}-${activeSlideIndex}`}
                         slide={activeSlide}
                         meta={currentMeta}
+                        animationTrigger={animationTrigger}
+                        onAnimationStart={handleAnimationStart}
+                        onAnimationComplete={handleAnimationComplete}
                      />
                   )}
                </div>
@@ -2905,8 +4152,37 @@ export default function SlidesWorkspacePage() {
                         >
                            Corporate
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("geometric")}
+                        >
+                           Geometric
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("minimal")}
+                        >
+                           Minimal
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("creative")}
+                        >
+                           Creative
+                        </DropdownMenuItem>
                      </DropdownMenuContent>
                   </DropdownMenu>
+                  <Button
+                     variant="outline"
+                     size="sm"
+                     className="gap-2"
+                     onClick={() => {
+                        if (!activeSlide?.animations) return;
+                        setAnimationTrigger((previous) => previous + 1);
+                     }}
+                     disabled={!activeSlide?.animations || isAnimating}
+                  >
+                     <Sparkles className="h-4 w-4" />
+                     Animate
+                  </Button>
                   <Button
                      variant="outline"
                      size="sm"
@@ -2989,6 +4265,9 @@ export default function SlidesWorkspacePage() {
                               <SlidePreview
                                  slide={activeSlide}
                                  meta={currentMeta}
+                                 animationTrigger={animationTrigger}
+                                 onAnimationStart={handleAnimationStart}
+                                 onAnimationComplete={handleAnimationComplete}
                               />
                            </div>
                            <div className="pointer-events-none absolute bottom-4 left-6 right-6">

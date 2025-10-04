@@ -1,9 +1,11 @@
-"""
-Analyzer - Simple text to slides converter using OpenAI API
-"""
+"""Analyzer - Simple text to slides converter using OpenAI API."""
 
+import base64
 import os
-from typing import List, Dict, Any
+from urllib.parse import quote_plus
+from typing import List, Dict, Any, Optional
+
+import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -51,6 +53,11 @@ class Analyzer:
            - "two-col": Two-column layout for comparisons or lists
            - "image-left": Content with image on the left
            - "image-right": Content with image on the right
+        4. Optional animations to make the slide more engaging:
+           - "title": Animation for the slide title
+           - "bullets": Animation for bullet points
+           - "image": Animation for images (if applicable)
+           - "background": Animation for background elements
         
         Choose the layout that best fits the slide's content and purpose:
         - Use "title" for simple, impactful statements
@@ -59,7 +66,38 @@ class Analyzer:
         - Use "image-left" for technical concepts, processes, or architecture
         - Use "image-right" for results, outcomes, or visual data
 
+        Available animation types:
+        - "fadeIn": Smooth fade-in effect
+        - "slideInLeft": Slide in from the left
+        - "slideInRight": Slide in from the right
+        - "slideInUp": Slide in from the bottom
+        - "slideInDown": Slide in from the top
+        - "zoomIn": Scale up from small to normal size
+        - "rotateIn": Rotate in with fade
+        - "bounceIn": Bouncy entrance effect
+        - "flipInX": Flip in on X-axis
+        - "flipInY": Flip in on Y-axis
+        - "typewriter": Text appears character by character
+        - "reveal": Progressive reveal effect
+        - "stagger": Sequential animation for multiple items
+
+        Animation configuration:
+        - type: Animation type from the list above
+        - duration: Duration in milliseconds (300-2000)
+        - delay: Delay before animation starts in milliseconds (0-1000)
+        - easing: "easeInOut", "easeOut", "easeIn", "bounce", "elastic"
+        - stagger: For staggered animations, delay between items (100-300)
+
+        Choose animations that enhance the content:
+        - Use "zoomIn" or "bounceIn" for impactful title slides
+        - Use "slideInLeft/Right" for content that flows naturally
+        - Use "typewriter" for quotes or important text
+        - Use "stagger" for bullet points to reveal them sequentially
+        - Use "fadeIn" for subtle, professional effects
+
         note that if you use the image-left or image-right, the text should be shorter, to not make an overflow.
+        For any slide that would benefit from a visual (especially image-left or image-right layouts), include 2-5 concise "image_keywords"
+        that capture the visual concept of the slide. Focus on nouns or short phrases (no punctuation, no quotes).
         
         Format your response as JSON with this structure:
         {{
@@ -71,7 +109,23 @@ class Analyzer:
                         "Second key point",
                         "Third key point"
                     ],
-                    "suggested_layout": "title-bullets"
+                    "suggested_layout": "title-bullets",
+                    "image_keywords": ["keyword1", "keyword2"],
+                    "animations": {{
+                        "title": {{
+                            "type": "zoomIn",
+                            "duration": 800,
+                            "delay": 0,
+                            "easing": "bounce"
+                        }},
+                        "bullets": {{
+                            "type": "stagger",
+                            "duration": 400,
+                            "delay": 300,
+                            "easing": "easeOut",
+                            "stagger": 150
+                        }}
+                    }}
                 }}
             ]
         }}
@@ -81,7 +135,7 @@ class Analyzer:
         """
         
         messages = [
-            {"role": "system", "content": "You are an expert presentation designer who creates clear, engaging slides from any text content. You excel at choosing the most appropriate layout for each slide based on its content and purpose. Always respond with valid JSON and include the suggested_layout for each slide."},
+            {"role": "system", "content": "You are an expert presentation designer who creates clear, engaging slides from any text content. You excel at choosing the most appropriate layout and animations for each slide based on its content and purpose. Always respond with valid JSON and include the suggested_layout and animations for each slide."},
             {"role": "user", "content": prompt}
         ]
         
@@ -148,6 +202,94 @@ class Analyzer:
             slides.append(current_slide)
         
         return slides
+
+    def _extract_image_keywords(self, slide: Dict[str, Any]) -> List[str]:
+        """Gather a concise keyword list for image lookup."""
+        keywords = slide.get("image_keywords")
+        if isinstance(keywords, list):
+            cleaned = [str(kw).strip() for kw in keywords if str(kw).strip()]
+            if cleaned:
+                return cleaned
+
+        title = slide.get("title", "").strip()
+        bullets = slide.get("bullets") or []
+
+        fallback = []
+        if title:
+            fallback.extend(title.split())
+        for bullet in bullets[:3]:
+            fallback.extend(bullet.split())
+
+        seen = set()
+        deduped: List[str] = []
+        for word in fallback:
+            cleaned = "".join(ch for ch in word if ch.isalnum())
+            key = cleaned.lower()
+            if key and key not in seen:
+                seen.add(key)
+                deduped.append(cleaned)
+            if len(deduped) >= 5:
+                break
+        return deduped
+
+    def _build_slide_image_media(
+        self, slide: Dict[str, Any], slide_number: int
+    ) -> Optional[Dict[str, Any]]:
+        """Construct a media descriptor using external stock imagery by keyword."""
+
+        keywords = self._extract_image_keywords(slide)
+        if not keywords:
+            return None
+
+        limited_keywords = [kw for kw in keywords if kw][:3]
+        if not limited_keywords:
+            return None
+
+        query_parts = [quote_plus(kw).replace("+", "-") for kw in limited_keywords]
+        query = ",".join(query_parts)
+        url = f"https://source.unsplash.com/1280x720/?{query}"
+
+        alt_text = slide.get("title") or f"Slide {slide_number} illustration"
+
+        try:
+            response = requests.get(
+                url,
+                timeout=10,
+                headers={
+                    "User-Agent": "LovaSlideBot/1.0 (+https://lovaslide.app)",
+                    "Accept": "image/*",
+                },
+                allow_redirects=True,
+            )
+            response.raise_for_status()
+        except Exception as primary_error:
+            fallback_seed = quote_plus(limited_keywords[0]).replace("+", "-") or "presentation"
+            fallback_url = f"https://picsum.photos/seed/{fallback_seed}/1280/720"
+            try:
+                response = requests.get(
+                    fallback_url,
+                    timeout=10,
+                    headers={
+                        "User-Agent": "LovaSlideBot/1.0 (+https://lovaslide.app)",
+                        "Accept": "image/*",
+                    },
+                    allow_redirects=True,
+                )
+                response.raise_for_status()
+            except Exception as secondary_error:
+                print(
+                    f"⚠️ Image fetch failed for slide {slide_number}: {primary_error}; "
+                    f"fallback error: {secondary_error}"
+                )
+                return None
+
+        image_base64 = base64.b64encode(response.content).decode("utf-8")
+        data_url = f"data:image/jpeg;base64,{image_base64}"
+        return {
+            "kind": "image",
+            "url": data_url,
+            "alt": alt_text,
+        }
     
     def create_slides(self, text: str, max_slides: int = 5) -> Dict[str, Any]:
         """
@@ -314,6 +456,20 @@ class Analyzer:
             "layout": "title",
             "title": title,
             "notes": "Set the tone and highlight the main topic upfront.",
+            "animations": {
+                "title": {
+                    "type": "zoomIn",
+                    "duration": 1000,
+                    "delay": 0,
+                    "easing": "bounce"
+                },
+                "background": {
+                    "type": "fadeIn",
+                    "duration": 800,
+                    "delay": 0,
+                    "easing": "easeOut"
+                }
+            }
         }
         deck["slides"].append(title_slide)
         
@@ -332,16 +488,27 @@ class Analyzer:
             if slide.get('bullets'):
                 deck_slide["bullets"] = slide['bullets']
             
-            # Add media if applicable
-            if layout in ['image-left', 'image-right', 'image-center']:
-                deck_slide["media"] = [
-                    {
-                        "kind": "image",
-                        "url": "https://placehold.co/800x600/png",
-                        "alt": f"Slide {i+2} image"  # +2 because title slide is slide 1
-                    }
-                ]
+            media_items = slide.get("media")
+
+            if media_items:
+                deck_slide["media"] = media_items
+            elif layout in ["image-left", "image-right", "image-center"]:
+                generated_media = self._build_slide_image_media(slide, i + 2)
+                if generated_media:
+                    deck_slide["media"] = [generated_media]
+                else:
+                    deck_slide["media"] = [
+                        {
+                            "kind": "image",
+                            "url": "https://placehold.co/800x600/png",
+                            "alt": f"Slide {i + 2} image",
+                        }
+                    ]
             
+            # Add animations if provided by the LLM
+            if slide.get('animations'):
+                deck_slide["animations"] = slide['animations']
+
             deck["slides"].append(deck_slide)
         
         return deck
@@ -450,6 +617,29 @@ class Analyzer:
                 - title: appropriate title for the slide
                 - bullets: relevant bullet points (if applicable)
                 - notes: brief speaker notes
+                - animations: optional animations to enhance the slide
+
+                Available animation types:
+                - "fadeIn": Smooth fade-in effect
+                - "slideInLeft": Slide in from the left
+                - "slideInRight": Slide in from the right
+                - "slideInUp": Slide in from the bottom
+                - "slideInDown": Slide in from the top
+                - "zoomIn": Scale up from small to normal size
+                - "rotateIn": Rotate in with fade
+                - "bounceIn": Bouncy entrance effect
+                - "flipInX": Flip in on X-axis
+                - "flipInY": Flip in on Y-axis
+                - "typewriter": Text appears character by character
+                - "reveal": Progressive reveal effect
+                - "stagger": Sequential animation for multiple items
+
+                Animation configuration:
+                - type: Animation type from the list above
+                - duration: Duration in milliseconds (300-2000)
+                - delay: Delay before animation starts in milliseconds (0-1000)
+                - easing: "easeInOut", "easeOut", "easeIn", "bounce", "elastic"
+                - stagger: For staggered animations, delay between items (100-300)
 
                 note that if you use the image-left or image-right, the text should be shorter, to not make an overflow.
                 
@@ -475,6 +665,29 @@ class Analyzer:
                 - Change the layout if appropriate
                 - Add or modify notes
                 - Add media if relevant
+                - Add or modify animations to enhance the slide
+                
+                Available animation types:
+                - "fadeIn": Smooth fade-in effect
+                - "slideInLeft": Slide in from the left
+                - "slideInRight": Slide in from the right
+                - "slideInUp": Slide in from the bottom
+                - "slideInDown": Slide in from the top
+                - "zoomIn": Scale up from small to normal size
+                - "rotateIn": Rotate in with fade
+                - "bounceIn": Bouncy entrance effect
+                - "flipInX": Flip in on X-axis
+                - "flipInY": Flip in on Y-axis
+                - "typewriter": Text appears character by character
+                - "reveal": Progressive reveal effect
+                - "stagger": Sequential animation for multiple items
+
+                Animation configuration:
+                - type: Animation type from the list above
+                - duration: Duration in milliseconds (300-2000)
+                - delay: Delay before animation starts in milliseconds (0-1000)
+                - easing: "easeInOut", "easeOut", "easeIn", "bounce", "elastic"
+                - stagger: For staggered animations, delay between items (100-300)
                 
                 Return the updated slide in the same JSON format. Keep the structure consistent with the original deck format.
                 
@@ -500,6 +713,29 @@ class Analyzer:
             - Change the theme (light/dark) for all slides
             - Apply consistent styling across all slides
             - Update global presentation settings
+            - Add or modify animations to enhance slides
+            
+            Available animation types:
+            - "fadeIn": Smooth fade-in effect
+            - "slideInLeft": Slide in from the left
+            - "slideInRight": Slide in from the right
+            - "slideInUp": Slide in from the bottom
+            - "slideInDown": Slide in from the top
+            - "zoomIn": Scale up from small to normal size
+            - "rotateIn": Rotate in with fade
+            - "bounceIn": Bouncy entrance effect
+            - "flipInX": Flip in on X-axis
+            - "flipInY": Flip in on Y-axis
+            - "typewriter": Text appears character by character
+            - "reveal": Progressive reveal effect
+            - "stagger": Sequential animation for multiple items
+
+            Animation configuration:
+            - type: Animation type from the list above
+            - duration: Duration in milliseconds (300-2000)
+            - delay: Delay before animation starts in milliseconds (0-1000)
+            - easing: "easeInOut", "easeOut", "easeIn", "bounce", "elastic"
+            - stagger: For staggered animations, delay between items (100-300)
             
             For theme changes:
             - If user asks to change theme to "light" or "dark", update meta.theme accordingly
@@ -513,7 +749,7 @@ class Analyzer:
             """
         
         messages = [
-            {"role": "system", "content": "You are an expert presentation editor who understands deck JSON format and can make precise edits based on user feedback. Always respond with valid JSON only."},
+            {"role": "system", "content": "You are an expert presentation editor who understands deck JSON format and can make precise edits based on user feedback. You can add animations to enhance slide presentations. Always respond with valid JSON only."},
             {"role": "user", "content": prompt}
         ]
         
