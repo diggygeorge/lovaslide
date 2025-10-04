@@ -41,7 +41,16 @@ app.add_middleware(
 analyzer = None
 validation_agent = None
 
-# No Pydantic models needed - using Form data for file upload
+# Pydantic models for slide editing
+class SlideEditRequest(BaseModel):
+    deck: Dict[str, Any]
+    note: str
+    slide_index: Optional[int] = None  # If None, applies to entire deck
+
+class SlideEditResponse(BaseModel):
+    success: bool
+    updated_deck: Dict[str, Any]
+    message: str
 
 # Initialize services
 def initialize_services():
@@ -219,6 +228,44 @@ async def create_slides(
     except Exception as e:
         print(f"❌ Error in create-slides: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing document: {str(e)}")
+
+# Edit slides based on user notes
+@app.post("/edit-slides", response_model=SlideEditResponse)
+async def edit_slides(request: SlideEditRequest):
+    """
+    Edit slides based on user notes using ChatGPT API.
+    
+    This endpoint takes a deck JSON and user notes, then uses ChatGPT to:
+    1. Understand the requested changes
+    2. Apply edits to the specified slide(s)
+    3. Return the updated deck
+    """
+    if not analyzer:
+        raise HTTPException(status_code=500, detail="Analyzer not available")
+    
+    try:
+        print(f"📝 Processing slide edit request...")
+        print(f"Note: {request.note}")
+        print(f"Slide index: {request.slide_index}")
+        
+        # Use the analyzer to edit the deck based on the note
+        updated_deck = analyzer.edit_deck_with_note(
+            deck=request.deck,
+            note=request.note,
+            slide_index=request.slide_index
+        )
+        
+        print(f"✅ Deck updated successfully")
+        
+        return SlideEditResponse(
+            success=True,
+            updated_deck=updated_deck,
+            message="Slides updated successfully based on your note"
+        )
+    
+    except Exception as e:
+        print(f"❌ Error in edit-slides: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error editing slides: {str(e)}")
 
 # Get available file types
 @app.get("/supported-formats")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,10 +27,13 @@ import {
    LayoutDashboard,
    Loader2,
    MessageSquare,
+   Mic,
+   MicOff,
    Play,
    Presentation,
    Send,
    Sparkles,
+   X,
 } from "lucide-react";
 
 const BASE_FONT_STACK =
@@ -92,6 +95,41 @@ type ThemeConfig = {
    bullet: string;
    watermark: string;
 };
+
+type BrowserSpeechRecognition = {
+   start: () => void;
+   stop: () => void;
+   abort: () => void;
+   lang: string;
+   continuous: boolean;
+   interimResults: boolean;
+   maxAlternatives: number;
+   onstart: null | (() => void);
+   onend: null | (() => void);
+   onerror: null | ((event: { error?: string }) => void);
+   onresult: null | ((event: any) => void);
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+function describeSpeechRecognitionError(error?: string) {
+   switch (error) {
+      case "not-allowed":
+         return "Microphone access was blocked. Allow microphone permissions and try again.";
+      case "service-not-allowed":
+         return "Speech recognition isn't available right now. Please try again soon.";
+      case "network":
+         return "We couldn't reach the speech service. Check your connection or type the note instead.";
+      case "no-speech":
+         return "We didn't hear anything. Try speaking again.";
+      case "audio-capture":
+         return "No microphone was detected. Connect a microphone and try again.";
+      case "aborted":
+         return "The listening session was interrupted. Start again when you're ready.";
+      default:
+         return "We couldn't transcribe your audio. Please try again.";
+   }
+}
 
 const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
    dark: {
@@ -2089,8 +2127,13 @@ export default function SlidesWorkspacePage() {
    const [noteText, setNoteText] = useState("");
    const [isProcessing, setIsProcessing] = useState(false);
    const [isDockOpen, setIsDockOpen] = useState(true);
+   const [editScope, setEditScope] = useState<"slide" | "all">("slide");
    const [recentNotes, setRecentNotes] =
       useState<RecentNote[]>(defaultRecentNotes);
+   const [slideNotes, setSlideNotes] = useState<Record<number, RecentNote[]>>(
+      {}
+   );
+   const [generalNotes, setGeneralNotes] = useState<RecentNote[]>([]);
    const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(
       null
    );
@@ -2098,6 +2141,247 @@ export default function SlidesWorkspacePage() {
       demoDeck.meta.theme
    );
    const [slideData, setSlideData] = useState<any>(null);
+   const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
+   const [isListening, setIsListening] = useState(false);
+   const [voiceTranscript, setVoiceTranscript] = useState("");
+   const [voiceInterimTranscript, setVoiceInterimTranscript] = useState("");
+   const [voiceError, setVoiceError] = useState<string | null>(null);
+   const [autoSubmitVoice, setAutoSubmitVoice] = useState(true);
+   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+   const isProcessingRef = useRef(isProcessing);
+   const autoSubmitVoiceRef = useRef(autoSubmitVoice);
+   const voiceSubmissionLockRef = useRef(false);
+   const voiceReconnectAttemptsRef = useRef(0);
+   const voiceRetryTimeoutRef = useRef<number | null>(null);
+
+   const backendBaseUrl = useMemo(() => {
+      const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      if (envUrl) {
+         return envUrl.replace(/\/+$/, "");
+      }
+
+      if (typeof window !== "undefined") {
+         const { protocol, hostname } = window.location;
+         const defaultPort = "8000";
+         if (
+            hostname === "localhost" ||
+            hostname === "127.0.0.1" ||
+            hostname === "[::1]"
+         ) {
+            return `${protocol}//${hostname}:${defaultPort}`;
+         }
+         return `${protocol}//${hostname}`;
+      }
+
+      return "http://localhost:8000";
+   }, []);
+
+   useEffect(() => {
+      if (typeof window === "undefined") return;
+      const SpeechRecognitionClass =
+         (window as any).SpeechRecognition ||
+         (window as any).webkitSpeechRecognition;
+      setIsSpeechSupported(Boolean(SpeechRecognitionClass));
+   }, []);
+
+   const ensureRecognition = useCallback(() => {
+      if (speechRecognitionRef.current) {
+         return speechRecognitionRef.current;
+      }
+
+      if (typeof window === "undefined") {
+         return null;
+      }
+
+      const SpeechRecognitionClass:
+         | BrowserSpeechRecognitionConstructor
+         | undefined =
+         (window as any).SpeechRecognition ||
+         (window as any).webkitSpeechRecognition;
+
+      if (!SpeechRecognitionClass) {
+         setIsSpeechSupported(false);
+         setVoiceError(
+            "Speech recognition isn't supported in this browser. Try Chrome or Edge, or use the note field instead."
+         );
+         return null;
+      }
+
+      const recognition: BrowserSpeechRecognition =
+         new SpeechRecognitionClass();
+      recognition.lang =
+         (typeof navigator !== "undefined" && navigator.language) || "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.onstart = () => {
+         setIsListening(true);
+         setVoiceError(null);
+         voiceReconnectAttemptsRef.current = 0;
+         if (voiceRetryTimeoutRef.current) {
+            window.clearTimeout(voiceRetryTimeoutRef.current);
+            voiceRetryTimeoutRef.current = null;
+         }
+      };
+      recognition.onresult = (event: any) => {
+         let finalText = "";
+         let interimText = "";
+         for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+            const transcript = result[0]?.transcript ?? "";
+            if (!transcript) continue;
+            if (result.isFinal) {
+               finalText += `${transcript} `;
+            } else {
+               interimText += transcript;
+            }
+         }
+         if (finalText) {
+            setVoiceTranscript((previous) =>
+               `${previous} ${finalText}`.replace(/\s+/g, " ").trim()
+            );
+         }
+         setVoiceInterimTranscript(interimText.trim());
+      };
+      recognition.onerror = (event: any) => {
+         const message = describeSpeechRecognitionError(event?.error);
+         if (event?.error === "network") {
+            const attempts = voiceReconnectAttemptsRef.current;
+            if (attempts < 2) {
+               voiceReconnectAttemptsRef.current = attempts + 1;
+               setVoiceError(
+                  attempts === 0
+                     ? "We lost the speech connection. Reconnecting..."
+                     : "Still reconnecting to speech service..."
+               );
+               try {
+                  recognition.abort();
+               } catch (abortError) {
+                  console.error("Failed to abort recognition", abortError);
+               }
+               if (voiceRetryTimeoutRef.current) {
+                  window.clearTimeout(voiceRetryTimeoutRef.current);
+               }
+               voiceRetryTimeoutRef.current = window.setTimeout(() => {
+                  if (speechRecognitionRef.current !== recognition) {
+                     return;
+                  }
+                  try {
+                     recognition.start();
+                  } catch (restartError: any) {
+                     console.error(
+                        "Restart after network error failed",
+                        restartError
+                     );
+                     setVoiceError(message);
+                     setIsListening(false);
+                  }
+               }, 900);
+               return;
+            }
+         }
+         setVoiceError(message);
+         setIsListening(false);
+      };
+      recognition.onend = () => {
+         setIsListening(false);
+         setVoiceInterimTranscript("");
+      };
+
+      speechRecognitionRef.current = recognition;
+      return recognition;
+   }, []);
+
+   const startListening = useCallback(() => {
+      const recognition = ensureRecognition();
+      if (!recognition) return;
+
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+         setVoiceError(
+            "You're offline right now. Reconnect to the internet and try again, or type your note."
+         );
+         return;
+      }
+
+      voiceSubmissionLockRef.current = false;
+      setVoiceTranscript("");
+      setVoiceInterimTranscript("");
+      setVoiceError(null);
+      voiceReconnectAttemptsRef.current = 0;
+      if (voiceRetryTimeoutRef.current) {
+         window.clearTimeout(voiceRetryTimeoutRef.current);
+         voiceRetryTimeoutRef.current = null;
+      }
+
+      try {
+         recognition.start();
+      } catch (error: any) {
+         if (error?.name === "InvalidStateError") {
+            setVoiceError(
+               "We're already listening. Stop the current session before starting a new one."
+            );
+         } else {
+            setVoiceError(
+               "We couldn't access your microphone. Check permissions and try again."
+            );
+         }
+      }
+   }, [ensureRecognition]);
+
+   const stopListening = useCallback(() => {
+      const recognition = speechRecognitionRef.current;
+      if (!recognition) return;
+      try {
+         recognition.stop();
+      } catch (error) {
+         console.error("Failed to stop recognition", error);
+      }
+      if (voiceRetryTimeoutRef.current) {
+         window.clearTimeout(voiceRetryTimeoutRef.current);
+         voiceRetryTimeoutRef.current = null;
+      }
+   }, []);
+
+   const closeVoicePanel = useCallback(() => {
+      stopListening();
+      setIsVoicePanelOpen(false);
+      setVoiceTranscript("");
+      setVoiceInterimTranscript("");
+      setVoiceError(null);
+      voiceSubmissionLockRef.current = false;
+      voiceReconnectAttemptsRef.current = 0;
+      if (voiceRetryTimeoutRef.current) {
+         window.clearTimeout(voiceRetryTimeoutRef.current);
+         voiceRetryTimeoutRef.current = null;
+      }
+   }, [stopListening]);
+
+   useEffect(() => {
+      return () => {
+         const recognition = speechRecognitionRef.current;
+         if (recognition) {
+            try {
+               recognition.abort();
+            } catch (error) {
+               console.error("Failed to abort recognition", error);
+            }
+            speechRecognitionRef.current = null;
+         }
+         if (voiceRetryTimeoutRef.current) {
+            window.clearTimeout(voiceRetryTimeoutRef.current);
+            voiceRetryTimeoutRef.current = null;
+         }
+      };
+   }, []);
+
+   useEffect(() => {
+      isProcessingRef.current = isProcessing;
+   }, [isProcessing]);
+
+   useEffect(() => {
+      autoSubmitVoiceRef.current = autoSubmitVoice;
+   }, [autoSubmitVoice]);
 
    useEffect(() => {
       const storedData = sessionStorage.getItem("slideData");
@@ -2118,20 +2402,37 @@ export default function SlidesWorkspacePage() {
             ...slide,
             id: index + 1,
             status: "Ready",
+            // Ensure layout is always defined with a fallback
+            layout: slide.layout || "title-bullets",
          }));
       } else {
          return demoDeck.slides.map((slide, index) => ({
             ...slide,
             id: index + 1,
             status: slideStatuses[index] ?? "Draft",
+            // Ensure layout is always defined with a fallback
+            layout: slide.layout || "title-bullets",
          }));
       }
    }, [slideData]);
 
    const slidesCount = deckSlides.length;
-   const activeSlide = deckSlides[activeSlideIndex];
-   const isFirstSlide = activeSlideIndex === 0;
-   const isLastSlide = activeSlideIndex === slidesCount - 1;
+
+   // Ensure activeSlideIndex is within bounds
+   const validActiveSlideIndex = Math.min(
+      activeSlideIndex,
+      Math.max(0, slidesCount - 1)
+   );
+   const activeSlide = deckSlides[validActiveSlideIndex];
+   const isFirstSlide = validActiveSlideIndex === 0;
+   const isLastSlide = validActiveSlideIndex === slidesCount - 1;
+
+   // Update activeSlideIndex if it was out of bounds
+   useEffect(() => {
+      if (activeSlideIndex !== validActiveSlideIndex) {
+         setActiveSlideIndex(validActiveSlideIndex);
+      }
+   }, [activeSlideIndex, validActiveSlideIndex]);
 
    const currentMeta = useMemo(() => {
       if (slideData && slideData.slides) {
@@ -2143,22 +2444,212 @@ export default function SlidesWorkspacePage() {
       return { ...demoDeck.meta, theme: currentTheme };
    }, [slideData, currentTheme]);
 
-   const handleSubmitNote = () => {
-      if (!noteText.trim()) return;
+   const handleSubmitNote = useCallback(
+      async (
+         overrideText?: string,
+         options?: { keepManualInput?: boolean; suppressAlert?: boolean }
+      ) => {
+         const textToSend = (overrideText ?? noteText).trim();
+         if (!textToSend) {
+            return false;
+         }
 
-      setIsProcessing(true);
-      setTimeout(() => {
-         const newNote: RecentNote = {
-            id: Date.now(),
-            text: noteText,
-            timestamp: "Just now",
-            status: "pending",
-         };
-         setRecentNotes((prev) => [newNote, ...prev]);
-         setNoteText("");
-         setIsProcessing(false);
-      }, 1200);
-   };
+         setIsProcessing(true);
+
+         try {
+            const deckData = {
+               meta: currentMeta,
+               slides: deckSlides.map((slide) => ({
+                  layout: slide.layout,
+                  title: slide.title,
+                  bullets: slide.bullets,
+                  notes: slide.notes,
+                  media: slide.media,
+                  quote: slide.quote,
+                  author: slide.author,
+                  stats: slide.stats,
+                  comparison: slide.comparison,
+               })),
+            };
+
+            const response = await fetch(`${backendBaseUrl}/edit-slides`, {
+               method: "POST",
+               headers: {
+                  "Content-Type": "application/json",
+               },
+               body: JSON.stringify({
+                  deck: deckData,
+                  note: textToSend,
+                  slide_index:
+                     editScope === "slide" ? validActiveSlideIndex : null,
+               }),
+            });
+
+            if (!response.ok) {
+               throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+               setSlideData({ slides: result.updated_deck });
+               // Update theme if it was changed in the backend
+               if (result.updated_deck.meta?.theme) {
+                  setCurrentTheme(result.updated_deck.meta.theme);
+               }
+
+               const newNote: RecentNote = {
+                  id: Date.now(),
+                  text: textToSend,
+                  timestamp: "Just now",
+                  status: "completed",
+               };
+
+               // Add note to appropriate list based on edit scope
+               if (editScope === "slide") {
+                  setSlideNotes((prev) => {
+                     const currentSlideNotes =
+                        prev[validActiveSlideIndex] || [];
+                     const updatedNotes = [newNote, ...currentSlideNotes].slice(
+                        0,
+                        3 // Limit of 3 notes per slide
+                     );
+                     return {
+                        ...prev,
+                        [validActiveSlideIndex]: updatedNotes,
+                     };
+                  });
+               } else {
+                  // Edit scope is 'all' - add to general notes
+                  setGeneralNotes((prev) => [newNote, ...prev].slice(0, 5)); // Limit of 5 general notes
+               }
+
+               setRecentNotes((prev) => [newNote, ...prev]);
+               return true;
+            }
+
+            throw new Error(result.message || "Failed to update slides");
+         } catch (error) {
+            console.error("Error updating slides:", error);
+
+            const newNote: RecentNote = {
+               id: Date.now(),
+               text: textToSend,
+               timestamp: "Just now",
+               status: "pending",
+            };
+
+            // Add note to appropriate list based on edit scope
+            if (editScope === "slide") {
+               setSlideNotes((prev) => {
+                  const currentSlideNotes = prev[validActiveSlideIndex] || [];
+                  const updatedNotes = [newNote, ...currentSlideNotes].slice(
+                     0,
+                     3
+                  ); // Limit of 3 notes per slide
+                  return {
+                     ...prev,
+                     [validActiveSlideIndex]: updatedNotes,
+                  };
+               });
+            } else {
+               // Edit scope is 'all' - add to general notes
+               setGeneralNotes((prev) => [newNote, ...prev].slice(0, 5)); // Limit of 5 general notes
+            }
+
+            setRecentNotes((prev) => [newNote, ...prev]);
+
+            if (
+               !options?.suppressAlert &&
+               typeof window !== "undefined" &&
+               typeof window.alert === "function"
+            ) {
+               window.alert("Failed to update slides. Please try again.");
+            }
+
+            return false;
+         } finally {
+            if (!options?.keepManualInput && overrideText === undefined) {
+               setNoteText("");
+            }
+            setIsProcessing(false);
+         }
+      },
+      [
+         validActiveSlideIndex,
+         backendBaseUrl,
+         currentMeta,
+         deckSlides,
+         noteText,
+         editScope,
+         setSlideData,
+         setRecentNotes,
+         setSlideNotes,
+         setGeneralNotes,
+      ]
+   );
+
+   const submitVoiceTranscript = useCallback(
+      async (text: string) => {
+         const trimmed = text.trim();
+         if (!trimmed) {
+            setVoiceError("We couldn't hear anything. Try again.");
+            voiceSubmissionLockRef.current = false;
+            return false;
+         }
+
+         if (isListening) {
+            stopListening();
+         }
+
+         if (isProcessingRef.current) {
+            return false;
+         }
+
+         voiceSubmissionLockRef.current = true;
+
+         const success = await handleSubmitNote(trimmed, {
+            keepManualInput: true,
+            suppressAlert: true,
+         });
+
+         if (success) {
+            closeVoicePanel();
+         } else {
+            setVoiceError(
+               "We couldn't update the deck right now. The note is saved and marked as pending."
+            );
+         }
+
+         voiceSubmissionLockRef.current = false;
+         return success;
+      },
+      [closeVoicePanel, handleSubmitNote, isListening, stopListening]
+   );
+
+   useEffect(() => {
+      if (
+         !autoSubmitVoiceRef.current ||
+         !isVoicePanelOpen ||
+         isListening ||
+         !voiceTranscript.trim() ||
+         isProcessingRef.current ||
+         voiceSubmissionLockRef.current ||
+         voiceError
+      ) {
+         return;
+      }
+
+      voiceSubmissionLockRef.current = true;
+      void submitVoiceTranscript(voiceTranscript);
+   }, [
+      autoSubmitVoice,
+      isListening,
+      isVoicePanelOpen,
+      submitVoiceTranscript,
+      voiceTranscript,
+      voiceError,
+   ]);
 
    const handlePrevSlide = () => {
       if (!isFirstSlide) {
@@ -2238,6 +2729,20 @@ export default function SlidesWorkspacePage() {
    };
 
    const exportButtonLabel = exportingFormat ? "Generating..." : "Export";
+
+   // Safety check to prevent undefined access - moved after all hooks
+   if (!activeSlide) {
+      return (
+         <div className="flex items-center justify-center h-screen">
+            <div className="text-center">
+               <h2 className="text-2xl font-bold mb-4">No slides available</h2>
+               <p className="text-muted-foreground">
+                  Please upload a document to generate slides.
+               </p>
+            </div>
+         </div>
+      );
+   }
 
    return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -2361,12 +2866,13 @@ export default function SlidesWorkspacePage() {
                               tone={getToneForStatus(activeSlide.status)}
                            />
                            <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
-                              {activeSlide.layout.replace(/-/g, " ")}
+                              {activeSlide?.layout?.replace(/-/g, " ") ||
+                                 "Unknown Layout"}
                            </p>
                         </div>
                         <div className="text-sm text-muted-foreground">
                            <div className="text-xs text-muted-foreground/80">
-                              Slide {activeSlideIndex + 1} of {slidesCount}
+                              Slide {validActiveSlideIndex + 1} of {slidesCount}
                            </div>
                         </div>
                      </CardHeader>
@@ -2426,15 +2932,15 @@ export default function SlidesWorkspacePage() {
                                                    // Auto-scroll to active slide
                                                    const activeButton = el
                                                       .children[
-                                                      activeSlideIndex
+                                                      validActiveSlideIndex
                                                    ] as HTMLElement;
                                                    if (activeButton) {
                                                       // For first and last slides, use 'nearest' to avoid cutoff
                                                       // For middle slides, use 'center' for better visibility
                                                       const scrollBehavior =
-                                                         activeSlideIndex ===
+                                                         validActiveSlideIndex ===
                                                             0 ||
-                                                         activeSlideIndex ===
+                                                         validActiveSlideIndex ===
                                                             slidesCount - 1
                                                             ? "nearest"
                                                             : "center";
@@ -2460,7 +2966,8 @@ export default function SlidesWorkspacePage() {
                                                    }
                                                    className={cn(
                                                       "min-w-[140px] rounded-xl border px-3 py-2 text-left transition-colors",
-                                                      index === activeSlideIndex
+                                                      index ===
+                                                         validActiveSlideIndex
                                                          ? "border-primary/60 bg-primary/20 text-primary-foreground"
                                                          : "border-white/10 bg-black/40 text-white/70 hover:border-white/30"
                                                    )}
@@ -2499,73 +3006,174 @@ export default function SlidesWorkspacePage() {
                   <Card className="w-full border-border/60 lg:max-w-sm">
                      <CardHeader className="space-y-1">
                         <CardTitle className="text-lg font-semibold text-foreground">
-                           Add notes & actions
+                           {editScope === "slide"
+                              ? "Add notes & actions"
+                              : "Edit all slides"}
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                           Share context or cue an agent to update this slide.
+                           {editScope === "slide"
+                              ? `Share context or cue an agent to update slide ${
+                                   validActiveSlideIndex + 1
+                                }.`
+                              : "Share context or cue an agent to update all slides in the presentation."}
                         </p>
                      </CardHeader>
                      <div className="h-px bg-border/60" />
                      <CardContent className="space-y-6">
-                        {recentNotes.length > 0 && (
+                        {editScope === "all" && generalNotes.length > 0 && (
                            <div className="space-y-3">
                               <div className="flex items-center gap-2">
                                  <History className="h-4 w-4 text-muted-foreground" />
                                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                    Recent notes
+                                    General notes ({generalNotes.length}/5)
                                  </Label>
                               </div>
                               <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                                 {recentNotes.slice(0, 2).map((note) => (
+                                 {generalNotes.map((note) => (
                                     <div
                                        key={note.id}
                                        className={cn(
                                           "rounded-lg border p-3 text-sm transition-colors",
                                           note.status === "completed"
-                                             ? "border-emerald-200/20 bg-emerald-50/10"
-                                             : "border-amber-200/20 bg-amber-50/10"
+                                             ? "border-green-500/30 bg-green-500/10 text-foreground"
+                                             : "border-yellow-500/30 bg-yellow-500/10 text-foreground"
                                        )}
                                     >
-                                       <div className="flex items-start gap-2">
-                                          {note.status === "completed" ? (
-                                             <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                                          ) : (
-                                             <Bot className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                             <p className="text-foreground/90 leading-relaxed">
-                                                {note.text}
-                                             </p>
-                                             <p className="text-xs text-muted-foreground mt-1">
-                                                {note.timestamp}
-                                             </p>
-                                          </div>
-                                       </div>
+                                       <p className="line-clamp-2">
+                                          {note.text}
+                                       </p>
+                                       <p className="mt-1 text-xs text-muted-foreground">
+                                          {note.timestamp} •{" "}
+                                          {note.status === "completed"
+                                             ? "Applied"
+                                             : "Pending"}
+                                       </p>
                                     </div>
                                  ))}
                               </div>
                            </div>
                         )}
+                        {editScope === "slide" &&
+                           slideNotes[validActiveSlideIndex] &&
+                           slideNotes[validActiveSlideIndex].length > 0 && (
+                              <div className="space-y-3">
+                                 <div className="flex items-center gap-2">
+                                    <History className="h-4 w-4 text-muted-foreground" />
+                                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                       Slide notes (
+                                       {
+                                          slideNotes[validActiveSlideIndex]
+                                             .length
+                                       }
+                                       /3)
+                                    </Label>
+                                 </div>
+                                 <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                                    {slideNotes[validActiveSlideIndex].map(
+                                       (note) => (
+                                          <div
+                                             key={note.id}
+                                             className={cn(
+                                                "rounded-lg border p-3 text-sm transition-colors",
+                                                note.status === "completed"
+                                                   ? "border-emerald-200/20 bg-emerald-50/10"
+                                                   : "border-amber-200/20 bg-amber-50/10"
+                                             )}
+                                          >
+                                             <div className="flex items-start gap-2">
+                                                {note.status === "completed" ? (
+                                                   <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                                                ) : (
+                                                   <Bot className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                   <p className="text-foreground/90 leading-relaxed">
+                                                      {note.text}
+                                                   </p>
+                                                   <p className="text-xs text-muted-foreground mt-1">
+                                                      {note.timestamp}
+                                                   </p>
+                                                </div>
+                                             </div>
+                                          </div>
+                                       )
+                                    )}
+                                 </div>
+                              </div>
+                           )}
 
                         <div className="space-y-3">
-                           <Label
-                              htmlFor="slide-note"
-                              className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3 block"
-                           >
-                              Add a note
-                           </Label>
+                           <div className="flex items-center justify-between mb-3">
+                              <Label
+                                 htmlFor="slide-note"
+                                 className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                              >
+                                 Add a note
+                              </Label>
+                              <div className="flex items-center gap-2">
+                                 <span className="text-xs text-muted-foreground">
+                                    Edit:
+                                 </span>
+                                 <div className="flex rounded-lg border border-border/60 bg-background/50 p-1">
+                                    <button
+                                       onClick={() => setEditScope("slide")}
+                                       className={cn(
+                                          "px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1",
+                                          editScope === "slide"
+                                             ? "bg-primary text-primary-foreground"
+                                             : "text-muted-foreground hover:text-foreground"
+                                       )}
+                                    >
+                                       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>
+                                       This slide
+                                    </button>
+                                    <button
+                                       onClick={() => setEditScope("all")}
+                                       className={cn(
+                                          "px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1",
+                                          editScope === "all"
+                                             ? "bg-primary text-primary-foreground"
+                                             : "text-muted-foreground hover:text-foreground"
+                                       )}
+                                    >
+                                       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>
+                                       All slides
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+                           {editScope === "slide" &&
+                              slideNotes[validActiveSlideIndex]?.length >=
+                                 3 && (
+                                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
+                                    Note limit reached (3/3) for this slide. New
+                                    notes will replace the oldest.
+                                 </div>
+                              )}
+                           {editScope === "all" && generalNotes.length >= 5 && (
+                              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
+                                 Note limit reached (5/5) for general notes. New
+                                 notes will replace the oldest.
+                              </div>
+                           )}
                            <Textarea
                               id="slide-note"
                               value={noteText}
                               onChange={(e) => setNoteText(e.target.value)}
-                              placeholder="Describe a change or ask an agent to edit this slide..."
+                              placeholder={
+                                 editScope === "slide"
+                                    ? "Describe a change or ask an agent to edit this slide..."
+                                    : "Describe a change or ask an agent to edit all slides..."
+                              }
                               className="min-h-[100px]"
                            />
                            <div className="flex items-center gap-2">
                               <Button
                                  size="sm"
                                  className="gap-2 flex-1"
-                                 onClick={handleSubmitNote}
+                                 onClick={() => {
+                                    void handleSubmitNote();
+                                 }}
                                  disabled={!noteText.trim() || isProcessing}
                               >
                                  {isProcessing ? (
@@ -2595,9 +3203,172 @@ export default function SlidesWorkspacePage() {
             </div>
          </main>
 
+         {isVoicePanelOpen && (
+            <Card className="fixed bottom-24 right-6 z-50 w-[min(420px,calc(100vw-2.5rem))] border-border/70 bg-background/95 shadow-2xl backdrop-blur">
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <CardTitle className="text-base font-semibold">
+                     Talk to Slides
+                  </CardTitle>
+                  <Button
+                     variant="ghost"
+                     size="icon-sm"
+                     className="h-8 w-8 rounded-full"
+                     onClick={closeVoicePanel}
+                     aria-label="Close voice assistant"
+                  >
+                     <X className="h-4 w-4" />
+                  </Button>
+               </CardHeader>
+               <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span
+                           className={cn(
+                              "inline-flex h-2.5 w-2.5 rounded-full transition-colors",
+                              isListening
+                                 ? "bg-emerald-400 animate-pulse"
+                                 : "bg-muted-foreground/40"
+                           )}
+                        />
+                        {isListening
+                           ? "Listening..."
+                           : voiceTranscript
+                           ? "Captured voice note"
+                           : "Ready when you are"}
+                     </div>
+                     <p className="text-sm text-muted-foreground">
+                        {isSpeechSupported
+                           ? "Share what you'd like to adjust. We'll transcribe it into a note for the current slide."
+                           : "Speech recognition isn't available in this browser. Try Chrome or Edge, or use the note field instead."}
+                     </p>
+                  </div>
+
+                  <div className="rounded-lg border border-dashed border-border/70 bg-muted/60 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+                     {voiceTranscript ? (
+                        <span className="text-foreground">
+                           {voiceTranscript}
+                        </span>
+                     ) : (
+                        <span>
+                           Speak naturally and we'll capture your request.
+                        </span>
+                     )}
+                     {voiceInterimTranscript && (
+                        <span className="ml-1 text-muted-foreground/70 italic">
+                           {voiceInterimTranscript}
+                        </span>
+                     )}
+                  </div>
+
+                  {voiceError && (
+                     <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        {voiceError}
+                     </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                     <Button
+                        variant={isListening ? "secondary" : "outline"}
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => {
+                           if (isListening) {
+                              stopListening();
+                           } else {
+                              startListening();
+                           }
+                        }}
+                        disabled={!isSpeechSupported}
+                     >
+                        {isListening ? (
+                           <>
+                              <MicOff className="h-4 w-4" />
+                              Stop listening
+                           </>
+                        ) : (
+                           <>
+                              <Mic className="h-4 w-4" />
+                              Start talking
+                           </>
+                        )}
+                     </Button>
+                     <Button
+                        size="sm"
+                        className="gap-2"
+                        disabled={
+                           isProcessing ||
+                           (!voiceTranscript.trim() &&
+                              !voiceInterimTranscript.trim())
+                        }
+                        onClick={() => {
+                           const text =
+                              `${voiceTranscript} ${voiceInterimTranscript}`.trim();
+                           void submitVoiceTranscript(text);
+                        }}
+                     >
+                        {isProcessing ? (
+                           <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Sending...
+                           </>
+                        ) : (
+                           <>
+                              <Send className="h-4 w-4" />
+                              Send to agent
+                           </>
+                        )}
+                     </Button>
+                     <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={closeVoicePanel}
+                     >
+                        Cancel
+                     </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                     <label className="flex items-center gap-2">
+                        <input
+                           type="checkbox"
+                           checked={autoSubmitVoice}
+                           onChange={(event) =>
+                              setAutoSubmitVoice(event.target.checked)
+                           }
+                           className="h-4 w-4 rounded border border-border bg-background"
+                        />
+                        Auto send when you stop talking
+                     </label>
+                     <span className="text-muted-foreground/70">
+                        {voiceTranscript.trim()
+                           ? `${
+                                voiceTranscript.trim().split(/\s+/).length
+                             } words captured`
+                           : ""}
+                     </span>
+                  </div>
+               </CardContent>
+            </Card>
+         )}
+
          <Button
             size="lg"
-            className="fixed bottom-6 right-6 z-40 gap-3 bg-primary text-primary-foreground shadow-xl hover:bg-primary/90"
+            className={cn(
+               "fixed bottom-6 right-6 z-40 gap-3 bg-primary text-primary-foreground shadow-xl transition-all hover:bg-primary/90",
+               isVoicePanelOpen && "scale-[1.02]"
+            )}
+            onClick={() => {
+               setIsVoicePanelOpen(true);
+               if (!isSpeechSupported) {
+                  setVoiceError(
+                     "Speech recognition isn't supported in this browser. Try Chrome or Edge, or use the note field instead."
+                  );
+                  return;
+               }
+               if (!isListening) {
+                  startListening();
+               }
+            }}
          >
             <MessageSquare className="h-5 w-5" />
             Talk to Slides

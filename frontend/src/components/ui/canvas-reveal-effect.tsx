@@ -1,8 +1,22 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import React, { useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+
+function getWebGLSupport() {
+   if (typeof window === "undefined") return true;
+   try {
+      const canvas = document.createElement("canvas");
+      const gl =
+         canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: true }) ||
+         canvas.getContext("webgl", { failIfMajorPerformanceCaveat: true }) ||
+         canvas.getContext("experimental-webgl");
+      return Boolean(gl);
+   } catch (error) {
+      return false;
+   }
+}
 
 export const CanvasRevealEffect = ({
    animationSpeed = 0.4,
@@ -23,30 +37,62 @@ export const CanvasRevealEffect = ({
    dotSize?: number;
    showGradient?: boolean;
 }) => {
+   const [isWebGLAvailable, setIsWebGLAvailable] = useState(() =>
+      getWebGLSupport()
+   );
+   const [contextLost, setContextLost] = useState(false);
+
+   useEffect(() => {
+      setIsWebGLAvailable(getWebGLSupport());
+   }, [contextLost]);
+
+   const handleContextLost = useCallback(() => {
+      setContextLost(true);
+      setIsWebGLAvailable(false);
+   }, []);
+
+   const resetContextError = useCallback(() => {
+      setContextLost(false);
+      setIsWebGLAvailable(getWebGLSupport());
+   }, []);
+
    return (
       <div className={cn("h-full relative w-full", containerClassName)}>
          <div className="h-full w-full">
-            <DotMatrix
-               colors={colors ?? [[0, 255, 255]]}
-               dotSize={dotSize ?? 3}
-               opacities={
-                  opacities ?? [0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.8, 0.8, 0.8, 1]
-               }
-               shader={
-                  animationSpeed === 0
-                     ? `
+            {isWebGLAvailable && !contextLost ? (
+               <DotMatrix
+                  colors={colors ?? [[0, 255, 255]]}
+                  dotSize={dotSize ?? 3}
+                  opacities={
+                     opacities ?? [0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.8, 0.8, 0.8, 1]
+                  }
+                  shader={
+                     animationSpeed === 0
+                        ? `
               // No animation - show all dots immediately
               opacity *= 1.0;
             `
-                     : `
+                        : `
               float animation_speed_factor = ${animationSpeed.toFixed(1)};
               float intro_offset = distance(u_resolution / 2.0 / u_total_size, st2) * 0.01 + (random(st2) * 0.15);
               opacity *= step(intro_offset, u_time * animation_speed_factor);
               opacity *= clamp((1.0 - step(intro_offset + 0.1, u_time * animation_speed_factor)) * 1.25, 1.0, 1.25);
             `
-               }
-               center={["x", "y"]}
-            />
+                  }
+                  center={["x", "y"]}
+                  onContextLost={handleContextLost}
+               />
+            ) : (
+               <button
+                  type="button"
+                  onClick={resetContextError}
+                  className="flex h-full w-full items-center justify-center rounded-2xl border border-border/40 bg-muted/40 text-xs text-muted-foreground hover:text-foreground"
+               >
+                  {contextLost
+                     ? "WebGL wasn’t available, click to retry"
+                     : "WebGL is disabled in this browser. Click to retry."}
+               </button>
+            )}
          </div>
          {showGradient && (
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
@@ -62,6 +108,7 @@ interface DotMatrixProps {
    dotSize?: number;
    shader?: string;
    center?: ("x" | "y")[];
+   onContextLost?: () => void;
 }
 
 const DotMatrix: React.FC<DotMatrixProps> = ({
@@ -71,6 +118,7 @@ const DotMatrix: React.FC<DotMatrixProps> = ({
    dotSize = 2,
    shader = "",
    center = ["x", "y"],
+   onContextLost,
 }) => {
    const uniforms = React.useMemo(() => {
       let colorsArray = [
@@ -178,7 +226,14 @@ const DotMatrix: React.FC<DotMatrixProps> = ({
         }`}
          uniforms={uniforms}
          maxFps={60}
-      />
+      onContextLost={onContextLost}
+      contextAttributes={{
+         alpha: true,
+         preserveDrawingBuffer: false,
+         powerPreference: "low-power",
+         antialias: false,
+      }}
+   />
    );
 };
 
@@ -302,21 +357,32 @@ const ShaderMaterial = ({
    );
 };
 
-const Shader: React.FC<ShaderProps> = ({ source, uniforms, maxFps = 60 }) => {
+const Shader: React.FC<ShaderProps> = ({
+   source,
+   uniforms,
+   maxFps = 60,
+   onContextLost,
+   contextAttributes,
+}) => {
    return (
       <Canvas
          className="absolute inset-0 h-full w-full"
+         gl={{
+            antialias: false,
+            powerPreference: "low-power",
+            ...(contextAttributes ?? {}),
+         }}
          onCreated={(state) => {
             // Handle WebGL context loss
             state.gl.domElement.addEventListener(
                "webglcontextlost",
                (event) => {
-                  console.log("WebGL context lost, attempting to restore...");
-                  event.preventDefault();
+                  console.warn("WebGL context lost in CanvasRevealEffect");
+                  onContextLost?.();
                }
             );
             state.gl.domElement.addEventListener("webglcontextrestored", () => {
-               console.log("WebGL context restored");
+               console.info("WebGL context restored in CanvasRevealEffect");
             });
          }}
       >
@@ -333,4 +399,6 @@ interface ShaderProps {
       };
    };
    maxFps?: number;
+   onContextLost?: () => void;
+   contextAttributes?: WebGLContextAttributes;
 }

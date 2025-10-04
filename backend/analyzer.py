@@ -393,6 +393,184 @@ class Analyzer:
         
         print(f"Deck format data exported to {filename}")
     
+    def edit_deck_with_note(self, deck: Dict[str, Any], note: str, slide_index: int = None) -> Dict[str, Any]:
+        """
+        Edit a deck based on user notes using ChatGPT API.
+        
+        Args:
+            deck: The current deck JSON structure
+            note: User's note describing what to change
+            slide_index: Index of specific slide to edit (None for entire deck)
+            
+        Returns:
+            Updated deck with changes applied
+        """
+        import json
+        
+        # Create a prompt for editing the deck
+        if slide_index is not None:
+            # Edit specific slide
+            target_slide = deck['slides'][slide_index] if slide_index < len(deck['slides']) else None
+            if not target_slide:
+                raise ValueError(f"Slide index {slide_index} is out of range")
+            
+            # Check if the note is asking to add a new slide or multiple slides
+            add_slide_keywords = [
+                'add a new slide', 'add new slide', 'create a new slide', 'create new slide', 
+                'add another slide', 'add slide', 'add slides', 'create slides', 'add more slides'
+            ]
+            is_adding_slide = any(keyword in note.lower() for keyword in add_slide_keywords)
+            
+            # Check for specific numbers of slides to add
+            import re
+            slide_count_match = re.search(r'add\s+(\d+)\s+slides?', note.lower())
+            slides_to_add = 1
+            if slide_count_match:
+                slides_to_add = int(slide_count_match.group(1))
+                is_adding_slide = True
+            
+            if is_adding_slide:
+                # Handle adding slide(s) - return the complete deck with new slide(s) added
+                slide_text = "slide" if slides_to_add == 1 else f"{slides_to_add} slides"
+                prompt = f"""
+                You are an expert presentation editor. I need you to add {slide_text} to the presentation based on the user's note.
+                
+                Current deck:
+                {json.dumps(deck, indent=2)}
+                
+                User's note: "{note}"
+                
+                Please add {slide_text} to the deck according to the user's request. The new slide(s) should be added to the slides array.
+                Update the meta.total_slides count to reflect the new total.
+                
+                For each new slide, include:
+                - layout: choose from "title", "title-bullets", "two-col", "image-left", "image-right"
+                - title: appropriate title for the slide
+                - bullets: relevant bullet points (if applicable)
+                - notes: brief speaker notes
+                
+                Return the complete updated deck in the same JSON format. Maintain the structure:
+                - meta: title, theme, total_slides (updated), etc.
+                - slides: array of slide objects with the new slide(s) added
+                
+                Respond with only the updated deck JSON, no additional text or explanations.
+                """
+            else:
+                # Edit existing slide
+                prompt = f"""
+                You are an expert presentation editor. I need you to edit a specific slide based on the user's note.
+                
+                Current slide (index {slide_index}):
+                {json.dumps(target_slide, indent=2)}
+                
+                User's note: "{note}"
+                
+                Please edit this slide according to the user's request. You can:
+                - Modify the title
+                - Add, remove, or edit bullet points
+                - Change the layout if appropriate
+                - Add or modify notes
+                - Add media if relevant
+                
+                Return the updated slide in the same JSON format. Keep the structure consistent with the original deck format.
+                
+                Respond with only the updated slide JSON, no additional text or explanations.
+                """
+        else:
+            # Edit entire deck
+            prompt = f"""
+            You are an expert presentation editor. I need you to edit a presentation deck based on the user's note.
+            
+            Current deck:
+            {json.dumps(deck, indent=2)}
+            
+            User's note: "{note}"
+            
+            Please edit the deck according to the user's request. You can:
+            - Modify slide titles and content
+            - Add, remove, or edit bullet points
+            - Change layouts if appropriate
+            - Add or remove slides
+            - Modify the presentation title
+            - Add or modify notes
+            - Change the theme (light/dark) for all slides
+            - Apply consistent styling across all slides
+            - Update global presentation settings
+            
+            For theme changes:
+            - If user asks to change theme to "light" or "dark", update meta.theme accordingly
+            - Ensure all slides work well with the new theme
+            
+            Return the complete updated deck in the same JSON format. Maintain the structure:
+            - meta: title, theme, total_slides, etc.
+            - slides: array of slide objects with layout, title, bullets, notes, etc.
+            
+            Respond with only the updated deck JSON, no additional text or explanations.
+            """
+        
+        messages = [
+            {"role": "system", "content": "You are an expert presentation editor who understands deck JSON format and can make precise edits based on user feedback. Always respond with valid JSON only."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-5-chat-latest",
+                messages=messages,
+                max_completion_tokens=2000,
+                temperature=0.7
+            )
+            
+            # Parse the JSON response
+            content = response.choices[0].message.content.strip()
+            
+            # Remove markdown code blocks if present
+            if content.startswith('```json'):
+                content = content[7:]  # Remove ```json
+            if content.startswith('```'):
+                content = content[3:]   # Remove ```
+            if content.endswith('```'):
+                content = content[:-3]  # Remove trailing ```
+            
+            content = content.strip()
+            result = json.loads(content)
+            
+            if slide_index is not None:
+                # Check if we're adding a new slide or editing existing one
+                add_slide_keywords = [
+                    'add a new slide', 'add new slide', 'create a new slide', 'create new slide', 
+                    'add another slide', 'add slide', 'add slides', 'create slides', 'add more slides'
+                ]
+                is_adding_slide = any(keyword in note.lower() for keyword in add_slide_keywords)
+                
+                # Check for specific numbers of slides to add
+                slide_count_match = re.search(r'add\s+(\d+)\s+slides?', note.lower())
+                if slide_count_match:
+                    is_adding_slide = True
+                
+                if is_adding_slide:
+                    # Return the complete updated deck (new slide was added)
+                    return result
+                else:
+                    # Update specific slide in the deck
+                    updated_deck = deck.copy()
+                    updated_deck['slides'] = deck['slides'].copy()
+                    updated_deck['slides'][slide_index] = result
+                    return updated_deck
+            else:
+                # Return the complete updated deck
+                return result
+            
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+            print(f"Response content: {content}")
+            # Fallback: return original deck with error message
+            return deck
+        except Exception as e:
+            print(f"Error calling OpenAI API for deck editing: {e}")
+            # Fallback: return original deck
+            return deck
+
     def print_slides(self, presentation: Dict[str, Any]):
         """
         Print slides to console in a formatted way.

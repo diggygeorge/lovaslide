@@ -4,14 +4,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Upload, FileText, Image, File, Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Home() {
    const [dragActive, setDragActive] = useState(false);
    const [isUploading, setIsUploading] = useState(false);
    const [uploadProgress, setUploadProgress] = useState("");
    const router = useRouter();
+   const searchParams = useSearchParams();
+
+   // Function to set the upload cookie
+   const setUploadCookie = () => {
+      document.cookie = "hasUploadedFile=true; path=/; max-age=86400"; // 24 hours
+      console.log("[Home] Cookie set: hasUploadedFile=true");
+   };
 
    const handleDrag = (e: React.DragEvent) => {
       e.preventDefault();
@@ -28,6 +35,8 @@ export default function Home() {
       setUploadProgress("Uploading file...");
 
       try {
+         // Set cookie that user has uploaded a file
+         setUploadCookie();
          router.push("/working-agents");
          const totalAgentTime = 15000;
 
