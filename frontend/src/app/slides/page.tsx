@@ -2142,7 +2142,7 @@ export default function SlidesWorkspacePage() {
       demoDeck.meta.theme
    );
    const [slideData, setSlideData] = useState<any>(null);
-  const [validationData, setValidationData] = useState<any>(null);
+   const [validationData, setValidationData] = useState<any>(null);
    const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
    const [isListening, setIsListening] = useState(false);
    const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -2388,22 +2388,22 @@ export default function SlidesWorkspacePage() {
       autoSubmitVoiceRef.current = autoSubmitVoice;
    }, [autoSubmitVoice]);
 
-  useEffect(() => {
-     const storedData = sessionStorage.getItem("slideData");
-     if (storedData) {
-        try {
-           const parsedData = JSON.parse(storedData);
-           setSlideData(parsedData);
-           // Extract validation data if it exists
-           if (parsedData.validation) {
-              setValidationData(parsedData.validation);
-           }
-           sessionStorage.removeItem("slideData");
-        } catch (error) {
-           console.error("Failed to parse slide data:", error);
-        }
-     }
-  }, []);
+   useEffect(() => {
+      const storedData = sessionStorage.getItem("slideData");
+      if (storedData) {
+         try {
+            const parsedData = JSON.parse(storedData);
+            setSlideData(parsedData);
+            // Extract validation data if it exists
+            if (parsedData.validation) {
+               setValidationData(parsedData.validation);
+            }
+            sessionStorage.removeItem("slideData");
+         } catch (error) {
+            console.error("Failed to parse slide data:", error);
+         }
+      }
+   }, []);
 
    const deckSlides = useMemo<SlideWithStatus[]>(() => {
       if (slideData && slideData.slides) {
@@ -2966,7 +2966,7 @@ export default function SlidesWorkspacePage() {
          <main className="flex-1">
             <div className="container mx-auto flex max-w-screen flex-col gap-8 px-6 py-10">
                <div className="flex flex-col gap-6 lg:flex-row">
-                  <Card className="flex-1 overflow-hidden border-border/60 bg-gradient-to-br from-primary/15 via-background to-background">
+                  <Card className="flex-1 overflow-hidden border-border/60">
                      <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="space-y-1">
                            <SlideStatusBadge
@@ -2976,10 +2976,6 @@ export default function SlidesWorkspacePage() {
                               )}`}
                               tone={getToneForStatus(activeSlide.status)}
                            />
-                           <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
-                              {activeSlide?.layout?.replace(/-/g, " ") ||
-                                 "Unknown Layout"}
-                           </p>
                         </div>
                         <div className="text-sm text-muted-foreground">
                            <div className="text-xs text-muted-foreground/80">
@@ -3076,7 +3072,7 @@ export default function SlidesWorkspacePage() {
                                                       handleSelectSlide(index)
                                                    }
                                                    className={cn(
-                                                      "min-w-[140px] rounded-xl border px-3 py-2 text-left transition-colors",
+                                                      "w-[156px] rounded-xl border px-3 py-2 text-left transition-colors",
                                                       index ===
                                                          validActiveSlideIndex
                                                          ? "border-primary/60 bg-primary/20 text-primary-foreground"
@@ -3089,7 +3085,7 @@ export default function SlidesWorkspacePage() {
                                                          " "
                                                       )}
                                                    </p>
-                                                   <p className="text-sm font-semibold text-white">
+                                                   <p className="w-[150px] overflow-hidden truncate text-sm font-semibold text-white">
                                                       {slide.title}
                                                    </p>
                                                 </button>
@@ -3310,29 +3306,32 @@ export default function SlidesWorkspacePage() {
                         </div>
                      </CardContent>
                   </Card>
-
                </div>
             </div>
 
             {/* Validation Results - Separate row at bottom */}
             {validationData && validationData.total_claims > 0 && (
-               <div className="container mx-auto px-6 pb-10">
+               <div className="container mx-auto flex max-w-screen px-6">
                   <Card className="w-full border-border/60">
                      <CardHeader className="space-y-1">
                         <CardTitle className="text-lg font-semibold text-foreground">
-                           Fact Validation
+                           Fact Validation ({validationData.total_claims} claims
+                           found)
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                           Click on highlighted text to see validation details and proof sources.
+                           Click on highlighted text to see validation details
+                           and proof sources.
                         </p>
                      </CardHeader>
                      <div className="h-px bg-border/60" />
                      <CardContent className="p-6">
-                        <ValidationResults 
+                        <ValidationResults
                            validation={validationData}
                            slideContent={
-                              activeSlide?.title + " " + 
-                              (activeSlide?.bullets?.join(" ") || "") + " " +
+                              activeSlide?.title +
+                              " " +
+                              (activeSlide?.bullets?.join(" ") || "") +
+                              " " +
                               (activeSlide?.notes || "")
                            }
                         />

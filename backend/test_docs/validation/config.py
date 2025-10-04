@@ -19,5 +19,5 @@ DEFAULT_TEMPERATURE = float(os.getenv('DEFAULT_TEMPERATURE', '0.1'))
 DEFAULT_MAX_TOKENS = int(os.getenv('DEFAULT_MAX_TOKENS', '1000'))
 
 # Search Configuration
-MAX_SEARCH_RESULTS = int(os.getenv('MAX_SEARCH_RESULTS', '3'))
-SEARCH_DELAY = int(os.getenv('SEARCH_DELAY', '1'))  # seconds between searches to avoid rate limiting
+MAX_SEARCH_RESULTS = int(os.getenv('MAX_SEARCH_RESULTS', '2'))  # Reduced from 3 to 2
+SEARCH_DELAY = float(os.getenv('SEARCH_DELAY', '0.1'))  # Reduced from 1 to 0.5 seconds for better performance

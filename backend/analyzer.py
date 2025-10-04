@@ -40,8 +40,8 @@ class Analyzer:
         
         For each slide, provide:
         1. A clear, concise title (max 8 words)
-        2. 3-5 bullet points that are:
-           - Complete sentences
+        2. 3-5 bullet points (depends on the layout you choose) that are:
+           - Complete sentences but should be short and concise
            - Key facts or insights
            - Easy to understand
            - Directly relevant to the slide topic
@@ -58,6 +58,8 @@ class Analyzer:
         - Use "two-col" for comparisons, pros/cons, or structured lists
         - Use "image-left" for technical concepts, processes, or architecture
         - Use "image-right" for results, outcomes, or visual data
+
+        note that if you use the image-left or image-right, the text should be shorter, to not make an overflow.
         
         Format your response as JSON with this structure:
         {{
@@ -448,6 +450,8 @@ class Analyzer:
                 - title: appropriate title for the slide
                 - bullets: relevant bullet points (if applicable)
                 - notes: brief speaker notes
+
+                note that if you use the image-left or image-right, the text should be shorter, to not make an overflow.
                 
                 Return the complete updated deck in the same JSON format. Maintain the structure:
                 - meta: title, theme, total_slides (updated), etc.

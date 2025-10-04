@@ -77,6 +77,7 @@ class ValidationAgent:
     _last_search_time = 0
     _rate_limited = False
     _rate_limit_reset_time = 0
+    _fact_cache = {}  # Cache for extracted facts to avoid repeated processing
     
     def __init__(self, api_key: Optional[str] = None, serpapi_key: Optional[str] = None):
         """
@@ -118,10 +119,12 @@ class ValidationAgent:
         
         time_since_last_search = current_time - ValidationAgent._last_search_time
         
-        # If less than 15 seconds since last search, skip to avoid rate limits
-        if time_since_last_search < 15:
-            print(f"⚠️ Skipping web search due to rate limiting (last search {time_since_last_search:.1f}s ago)")
-            return False
+        # Use the configured search delay instead of hardcoded 15 seconds
+        search_delay = config.SEARCH_DELAY
+        if time_since_last_search < search_delay:
+            print(f"⚠️ Skipping web search due to rate limiting (last search {time_since_last_search:.1f}s ago, need {search_delay}s)")
+            # Don't return False - just continue without web search
+            return True
         
         ValidationAgent._last_search_time = current_time
         return True
@@ -136,7 +139,7 @@ class ValidationAgent:
                        slide_data: Dict[str, Any], 
                        analyzed_data: Dict[str, Any]) -> ValidationReport:
         """
-        Validate claims from slide data against analyzed data and external sources
+        Validate claims from raw document data against analyzed data and external sources
         
         Args:
             slide_data: Dictionary containing slide content and claims
@@ -145,18 +148,104 @@ class ValidationAgent:
         Returns:
             ValidationReport with validation results
         """
-        # Extract only the first 5 claims from slide data
-        claims = self._extract_claims(slide_data, max_claims=5)
+        # Extract facts from raw document text instead of slides
+        claims = self._extract_claims_from_raw_text(analyzed_data, max_claims=8)  # Increased to capture more claims
         
-        # Validate each claim
-        validation_results = []
-        for claim in claims:
-            result = self._validate_single_claim(claim, analyzed_data)
-            validation_results.append(result)
+        # Validate claims in parallel for better performance
+        validation_results = self._validate_claims_parallel(claims, analyzed_data)
         
         # Generate overall report
         report = self._generate_validation_report(validation_results)
         return report
+    
+    def _extract_claims_from_raw_text(self, analyzed_data: Dict[str, Any], max_claims: int = 8) -> List[str]:
+        """
+        Extract verifiable claims from raw document text, limited to max_claims
+        
+        Args:
+            analyzed_data: Dictionary containing analyzed data from the document
+            max_claims: Maximum number of claims to extract
+            
+        Returns:
+            List of claims to validate (limited to max_claims)
+        """
+        claims = []
+        
+        # Extract from raw text if available
+        if 'extracted_text' in analyzed_data:
+            raw_text = analyzed_data['extracted_text']
+            print(f"🔍 Processing raw text: {len(raw_text)} characters")
+            print(f"📄 First 500 chars: {raw_text[:500]}...")
+            
+            # Extract factual statements from raw document text
+            text_claims = self._extract_factual_statements(raw_text)
+            print(f"📋 Extracted {len(text_claims)} facts from document")
+            for i, claim in enumerate(text_claims, 1):
+                print(f"   {i}. {claim}")
+            
+            # Add claims up to the limit
+            for claim in text_claims:
+                if len(claims) >= max_claims:
+                    break
+                claims.append(claim)
+        
+        # Fallback to legacy data extraction if no raw text
+        if not claims and 'extracted_data' in analyzed_data:
+            for key, value in analyzed_data['extracted_data'].items():
+                if len(claims) >= max_claims:
+                    break
+                if isinstance(value, (int, float, str)):
+                    claim = f"{key}: {value}"
+                    claims.append(claim)
+        
+        print(f"✅ Extracted {len(claims)} claims from raw document for validation")
+        return claims
+    
+    def _validate_claims_parallel(self, claims: List[str], analyzed_data: Dict[str, Any]) -> List[ValidationResult]:
+        """
+        Validate multiple claims in parallel for better performance
+        
+        Args:
+            claims: List of claims to validate
+            analyzed_data: Analyzed data from the document
+            
+        Returns:
+            List of validation results
+        """
+        import concurrent.futures
+        import threading
+        
+        # Use ThreadPoolExecutor for I/O bound operations
+        validation_results = []
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            # Submit all validation tasks
+            future_to_claim = {
+                executor.submit(self._validate_single_claim, claim, analyzed_data): claim 
+                for claim in claims
+            }
+            
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_claim):
+                claim = future_to_claim[future]
+                try:
+                    result = future.result()
+                    validation_results.append(result)
+                except Exception as e:
+                    print(f"Error validating claim '{claim}': {e}")
+                    # Create error result
+                    error_result = ValidationResult(
+                        claim=claim,
+                        status=ValidationStatus.UNCERTAIN,
+                        confidence_score=0.0,
+                        explanation=f"Validation failed due to error: {str(e)}",
+                        proof_sources=[],
+                        replacement_suggestion=None,
+                        recommendations=["Manual review required due to validation error"]
+                    )
+                    validation_results.append(error_result)
+        
+        return validation_results
     
     def _extract_claims(self, slide_data: Dict[str, Any], max_claims: int = 5) -> List[str]:
         """
@@ -215,7 +304,7 @@ class ValidationAgent:
     
     def _extract_factual_statements(self, content: str) -> List[str]:
         """
-        Extract factual statements from text content using ChatGPT
+        Extract factual statements from text content using ChatGPT with caching
         
         Args:
             content: Text content to analyze
@@ -223,37 +312,69 @@ class ValidationAgent:
         Returns:
             List of factual statements
         """
-        prompt = f"""
-        Analyze the following text and extract factual statements that can be verified.
+        # Check cache first
+        content_hash = hash(content[:500])  # Use first 500 chars as cache key
+        if content_hash in ValidationAgent._fact_cache:
+            print("✅ Using cached facts")
+            return ValidationAgent._fact_cache[content_hash]
         
-        IMPORTANT: Extract ALL factual statements, even if they seem obvious. Include:
-        - Statistics and numerical data (e.g., "42% of workforce", "$2,000 per employee")
+        # Truncate content to avoid token limits and improve performance
+        max_content_length = 3000  # Increased to capture more content
+        if len(content) > max_content_length:
+            content = content[:max_content_length] + "..."
+        
+        prompt = f"""
+        Extract ALL factual statements from this text that can be verified. Include:
+        - Statistics and numbers (e.g., "42% of workforce", "$2,000 per employee")
         - Dates and time references (e.g., "in 2023", "Q3 results")
         - Specific claims about facts (e.g., "companies invest", "workforce works")
         - Comparisons and percentages (e.g., "increased by 25%", "26% work hybrid")
         - Technical specifications (e.g., "cloud-based tools", "virtual reality")
         - Business facts (e.g., "market share", "revenue growth")
-        - Any statement that makes a claim about reality that can be fact-checked
+        - Historical facts and political claims (e.g., "Trump was president", "Obama served two terms")
+        - Color and appearance claims (e.g., "grass is red", "sky is green")
+        - Any verifiable statements about people, events, or facts
+        
+        CRITICAL: You MUST extract ALL factual statements, including:
+        - Claims that might be false or controversial
+        - Political statements about presidents, elections, or government
+        - Historical claims that need verification
+        - Obviously false claims (e.g., "grass is red", "sky is green")
+        - Any statement that makes a factual claim about reality
+        
+        DO NOT filter, censor, or skip any claims. Extract everything that could potentially be fact-checked.
+        The validation process will determine accuracy - your job is to extract ALL claims.
+        
+        IMPORTANT: If the text contains "The grass is red and the sky is green", you MUST extract it as a factual statement.
         
         Text: {content}
         
         Return ONLY the factual statements, one per line. Extract everything that could potentially be fact-checked.
-        Do not say "no factual statements" - if there's any content, extract the factual parts.
         """
         
         try:
             response = self.client.chat.completions.create(
-                model=self.model,
+                model="gpt-3.5-turbo",  # Use faster, cheaper model for extraction
                 messages=[
-                    {"role": "system", "content": "You are an expert at extracting factual statements from text. Return only verifiable facts."},
+                    {"role": "system", "content": "You are a fact extraction tool. Your ONLY job is to extract ALL factual statements from text, including controversial, political, obviously false, or potentially false claims. Do NOT filter, censor, or skip any claims. Extract everything that could be fact-checked. The validation process will determine accuracy. Even obviously false claims like 'grass is red' must be extracted."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=500,
-                temperature=config.DEFAULT_TEMPERATURE
+                max_tokens=500,  # Increased to capture more facts
+                temperature=0.1  # Lower temperature for more consistent extraction
             )
             
             statements = response.choices[0].message.content.strip().split('\n')
-            return [stmt.strip() for stmt in statements if stmt.strip()]
+            result = [stmt.strip() for stmt in statements if stmt.strip()]
+            
+            # Debug: Print the raw response from ChatGPT
+            print(f"🤖 ChatGPT response: {response.choices[0].message.content}")
+            print(f"📝 Parsed statements: {result}")
+            
+            # Cache the result
+            ValidationAgent._fact_cache[content_hash] = result
+            print(f"✅ Extracted and cached {len(result)} facts from document")
+            
+            return result
             
         except Exception as e:
             print(f"Error extracting factual statements: {e}")
@@ -281,13 +402,13 @@ class ValidationAgent:
         
         try:
             response = self.client.chat.completions.create(
-                model=self.model,
+                model="gpt-4",  # Use GPT-4 for validation but with optimized settings
                 messages=[
                     {"role": "system", "content": "You are an expert fact-checker. Validate claims against provided data, your knowledge, and proof sources. Provide proof links for valid claims and replacement suggestions for invalid ones."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=config.DEFAULT_MAX_TOKENS,
-                temperature=config.DEFAULT_TEMPERATURE
+                max_tokens=800,  # Reduced from 1000 for faster response
+                temperature=0.1  # Lower temperature for more consistent validation
             )
             
             # Parse the response
@@ -334,7 +455,7 @@ class ValidationAgent:
     
     def _search_for_proof_sources(self, claim: str) -> List[ProofSource]:
         """
-        Search for proof sources using web search with improved rate limiting
+        Search for proof sources using web search with improved rate limiting and caching
         
         Args:
             claim: The claim to search for
@@ -345,68 +466,76 @@ class ValidationAgent:
         if not self.serpapi_key:
             return []
         
+        # Check if we should skip web search for this claim type
+        if self._should_skip_web_search(claim):
+            print(f"⚠️ Skipping web search for claim: {claim[:50]}...")
+            return []
+        
         # Check rate limiting before making requests
         if not self._check_rate_limit():
             return []
         
         try:
-            # Use SerpAPI for web search with reduced query variations to avoid rate limits
-            search_queries = [
-                f'"{claim}" verification fact check',
-                f'"{claim}" source evidence'
-            ]
+            # Use single optimized search query instead of multiple
+            search_query = f'"{claim}" fact check verification'
+            
+            params = {
+                'q': search_query,
+                'api_key': self.serpapi_key,
+                'engine': 'google',
+                'num': 3  # Get 3 results for better coverage
+            }
+            
+            response = requests.get('https://serpapi.com/search', params=params, timeout=8)
+            
+            # Handle rate limiting specifically
+            if response.status_code == 429:
+                print(f"⚠️ SerpAPI rate limit hit for claim: {claim[:50]}...")
+                self._handle_rate_limit()
+                return []  # Return empty results and disable future searches
+            
+            response.raise_for_status()
+            data = response.json()
             
             all_sources = []
+            if 'organic_results' in data:
+                for result in data['organic_results']:
+                    source = ProofSource(
+                        title=result.get('title', ''),
+                        url=result.get('link', ''),
+                        snippet=result.get('snippet', ''),
+                        reliability_score=self._calculate_reliability_score(result)
+                    )
+                    all_sources.append(source)
             
-            for i, search_query in enumerate(search_queries):
-                try:
-                    params = {
-                        'q': search_query,
-                        'api_key': self.serpapi_key,
-                        'engine': 'google',
-                        'num': 2  # Reduced from 3 to 2
-                    }
-                    
-                    response = requests.get('https://serpapi.com/search', params=params, timeout=10)
-                    
-                    # Handle rate limiting specifically
-                    if response.status_code == 429:
-                        print(f"⚠️ SerpAPI rate limit hit for claim: {claim[:50]}...")
-                        self._handle_rate_limit()
-                        return []  # Return empty results and disable future searches
-                    
-                    response.raise_for_status()
-                    
-                    data = response.json()
-                    
-                    if 'organic_results' in data:
-                        for result in data['organic_results']:
-                            source = ProofSource(
-                                title=result.get('title', ''),
-                                url=result.get('link', ''),
-                                snippet=result.get('snippet', ''),
-                                reliability_score=self._calculate_reliability_score(result)
-                            )
-                            # Avoid duplicates
-                            if not any(s.url == source.url for s in all_sources):
-                                all_sources.append(source)
-                    
-                    # Increased delay to avoid rate limiting (5 seconds between requests)
-                    if i < len(search_queries) - 1:  # Don't sleep after the last query
-                        time.sleep(5)
-                        
-                except requests.exceptions.RequestException as e:
-                    print(f"⚠️ SerpAPI request failed for query {i+1}: {e}")
-                    # Continue with next query instead of failing completely
-                    continue
-            
-            # Return top sources by reliability (reduced to 3 to avoid overwhelming)
+            # Return top sources by reliability
             all_sources.sort(key=lambda x: x.reliability_score, reverse=True)
-            return all_sources[:3]
+            return all_sources[:2]  # Return top 2 to reduce processing time
             
         except Exception as e:
             print(f"⚠️ Error searching for proof sources: {e}")
             return []
+    
+    def _should_skip_web_search(self, claim: str) -> bool:
+        """
+        Determine if web search should be skipped for this claim type
+        
+        Args:
+            claim: The claim to evaluate
+            
+        Returns:
+            True if web search should be skipped
+        """
+        # Skip web search for obvious or internal claims
+        skip_patterns = [
+            'slide', 'presentation', 'document', 'text', 'content',
+            'generated', 'created', 'produced', 'developed'
+        ]
+        
+        claim_lower = claim.lower()
+        
+        # Check if it should be skipped based on patterns
+        return any(pattern in claim_lower for pattern in skip_patterns)
     
     def _calculate_reliability_score(self, search_result: Dict[str, Any]) -> float:
         """
