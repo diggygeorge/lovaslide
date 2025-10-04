@@ -2148,6 +2148,9 @@ export default function SlidesWorkspacePage() {
    const [voiceError, setVoiceError] = useState<string | null>(null);
    const [autoSubmitVoice, setAutoSubmitVoice] = useState(true);
    const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+   const [isPresenting, setIsPresenting] = useState(false);
+   const [presentationKey, setPresentationKey] = useState(0);
+   const [isSlideLoading, setIsSlideLoading] = useState(false);
    const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
    const isProcessingRef = useRef(isProcessing);
    const autoSubmitVoiceRef = useRef(autoSubmitVoice);
@@ -2667,6 +2670,29 @@ export default function SlidesWorkspacePage() {
       setActiveSlideIndex(index);
    };
 
+   const handlePresent = () => {
+      setIsSlideLoading(true);
+      setIsPresenting(true);
+      // Force re-render of slide by updating key
+      setPresentationKey((prev) => prev + 1);
+      // Request fullscreen
+      if (document.documentElement.requestFullscreen) {
+         document.documentElement.requestFullscreen();
+      }
+      // Clear loading state after a short delay to allow slide to render
+      setTimeout(() => {
+         setIsSlideLoading(false);
+      }, 1000);
+   };
+
+   const handleExitPresent = () => {
+      setIsPresenting(false);
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+         document.exitFullscreen();
+      }
+   };
+
    useEffect(() => {
       const onKeyDown = (e: KeyboardEvent) => {
          if (e.defaultPrevented) return;
@@ -2691,16 +2717,31 @@ export default function SlidesWorkspacePage() {
             handleNextSlide();
          } else if (e.key === "ArrowUp") {
             e.preventDefault();
-            setIsDockOpen(true);
+            if (isPresenting) {
+               // In presentation mode, up arrow also goes to previous slide
+               handlePrevSlide();
+            } else {
+               setIsDockOpen(true);
+            }
          } else if (e.key === "ArrowDown") {
             e.preventDefault();
-            setIsDockOpen(false);
+            if (isPresenting) {
+               // In presentation mode, down arrow also goes to next slide
+               handleNextSlide();
+            } else {
+               setIsDockOpen(false);
+            }
+         } else if (e.key === "Escape") {
+            e.preventDefault();
+            if (isPresenting) {
+               handleExitPresent();
+            }
          }
       };
 
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
-   }, [handlePrevSlide, handleNextSlide]);
+   }, [handlePrevSlide, handleNextSlide, isPresenting, handleExitPresent]);
 
    const handleExport = async (format: ExportFormat) => {
       if (exportingFormat) return;
@@ -2739,6 +2780,65 @@ export default function SlidesWorkspacePage() {
                <p className="text-muted-foreground">
                   Please upload a document to generate slides.
                </p>
+            </div>
+         </div>
+      );
+   }
+
+   if (isPresenting) {
+      return (
+         <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+            <div className="w-full h-full flex items-center justify-center relative">
+               {/* Current slide display */}
+               <div className="w-full h-full flex items-center justify-center p-8">
+                  {isSlideLoading ? (
+                     <div className="flex items-center justify-center">
+                        <div className="text-white text-lg">
+                           Loading slide...
+                        </div>
+                     </div>
+                  ) : (
+                     <SlidePreview
+                        key={`presentation-${presentationKey}-${activeSlideIndex}`}
+                        slide={activeSlide}
+                        meta={currentMeta}
+                     />
+                  )}
+               </div>
+
+               {/* Navigation controls */}
+               <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-black/50 backdrop-blur-sm rounded-full px-6 py-3">
+                  <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={handlePrevSlide}
+                     disabled={activeSlideIndex === 0}
+                     className="text-white hover:bg-white/20"
+                  >
+                     ←
+                  </Button>
+                  <span className="text-white text-sm px-4">
+                     {activeSlideIndex + 1} / {slidesCount}
+                  </span>
+                  <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={handleNextSlide}
+                     disabled={activeSlideIndex === slidesCount - 1}
+                     className="text-white hover:bg-white/20"
+                  >
+                     →
+                  </Button>
+               </div>
+
+               <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleExitPresent}
+                  className="absolute top-8 right-8 text-white hover:bg-white/20"
+               >
+                  ✕
+               </Button>
             </div>
          </div>
       );
@@ -2801,7 +2901,12 @@ export default function SlidesWorkspacePage() {
                         </DropdownMenuItem>
                      </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button
+                     variant="outline"
+                     size="sm"
+                     className="gap-2"
+                     onClick={handlePresent}
+                  >
                      <Play className="h-4 w-4" />
                      Present
                   </Button>
@@ -3012,7 +3117,7 @@ export default function SlidesWorkspacePage() {
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
                            {editScope === "slide"
-                              ? `Share context or cue an agent to update slide ${
+                              ? `Share context to an agent to update slide ${
                                    validActiveSlideIndex + 1
                                 }.`
                               : "Share context or cue an agent to update all slides in the presentation."}
