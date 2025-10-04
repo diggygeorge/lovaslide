@@ -3,12 +3,14 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { Upload, FileText, Image, File } from "lucide-react";
+import { Upload, FileText, Image, File, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
    const [dragActive, setDragActive] = useState(false);
+   const [isUploading, setIsUploading] = useState(false);
+   const [uploadProgress, setUploadProgress] = useState("");
    const router = useRouter();
 
    const handleDrag = (e: React.DragEvent) => {
@@ -21,25 +23,65 @@ export default function Home() {
       }
    };
 
+   const uploadFile = async (file: File) => {
+      setIsUploading(true);
+      setUploadProgress("Uploading file...");
+
+      try {
+         router.push("/working-agents");
+         const totalAgentTime = 15000;
+
+         const formData = new FormData();
+         formData.append("file", file);
+         formData.append("max_slides", "5");
+         formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
+
+         const apiPromise = fetch("http://localhost:8000/create-slides", {
+            method: "POST",
+            body: formData,
+         });
+
+         await new Promise((resolve) => setTimeout(resolve, totalAgentTime));
+
+         const response = await apiPromise;
+
+         if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+         }
+
+         const result = await response.json();
+
+         if (result.success) {
+            sessionStorage.setItem("slideData", JSON.stringify(result));
+         } else {
+            throw new Error("Failed to create slides");
+         }
+      } catch (error) {
+         console.error("Upload error:", error);
+         setUploadProgress("Upload failed. Please try again.");
+         setTimeout(() => {
+            setIsUploading(false);
+            setUploadProgress("");
+            router.push("/");
+         }, 3000);
+      }
+   };
+
    const handleDrop = (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       setDragActive(false);
 
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-         // Handle file upload logic here
-         console.log("Files dropped:", e.dataTransfer.files);
-         // Navigate to working agents page
-         router.push("/working-agents");
+         const file = e.dataTransfer.files[0];
+         uploadFile(file);
       }
    };
 
    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-         // Handle file upload logic here
-         console.log("Files selected:", e.target.files);
-         // Navigate to working agents page
-         router.push("/working-agents");
+         const file = e.target.files[0];
+         uploadFile(file);
       }
    };
 
@@ -87,31 +129,46 @@ export default function Home() {
 
                         <div className="text-center">
                            <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-                              <Upload className="w-10 h-10 text-primary" />
+                              {isUploading ? (
+                                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                              ) : (
+                                 <Upload className="w-10 h-10 text-primary" />
+                              )}
                            </div>
 
-                           <h3 className="text-2xl font-semibold text-foreground mb-4">
-                              Drag your files here
-                           </h3>
-
-                           <p className="text-muted-foreground mb-6">
-                              or click to select your files
-                           </p>
-
-                           <div className="flex flex-wrap justify-center gap-4 mb-8">
-                              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                 <FileText className="w-4 h-4" />
-                                 <span>PDF, DOC, PPT, TXT</span>
-                              </div>
-                           </div>
-
-                           <Button
-                              size="lg"
-                              className="bg-primary hover:bg-primary/90"
-                           >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Browse Files
-                           </Button>
+                           {isUploading ? (
+                              <>
+                                 <h3 className="text-2xl font-semibold text-foreground mb-4">
+                                    {uploadProgress}
+                                 </h3>
+                                 <p className="text-muted-foreground mb-6">
+                                    Please wait while we process your file...
+                                 </p>
+                              </>
+                           ) : (
+                              <>
+                                 <h3 className="text-2xl font-semibold text-foreground mb-4">
+                                    Drag your files here
+                                 </h3>
+                                 <p className="text-muted-foreground mb-6">
+                                    or click to select your files
+                                 </p>
+                                 <div className="flex flex-wrap justify-center gap-4 mb-8">
+                                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                       <FileText className="w-4 h-4" />
+                                       <span>PDF, DOC, PPT, TXT</span>
+                                    </div>
+                                 </div>
+                                 <Button
+                                    size="lg"
+                                    className="bg-primary hover:bg-primary/90"
+                                    disabled={isUploading}
+                                 >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Browse Files
+                                 </Button>
+                              </>
+                           )}
                         </div>
                      </div>
                   </CardContent>

@@ -47,9 +47,9 @@ export const AgentCard = ({
                   setShowLoader(false);
                   setCurrentStep(0);
                   onComplete?.();
-               }, 500);
+               }, 300);
             }
-         }, 1500);
+         }, 600);
       }
    }, [isActive, isCompleted, loadingStates.length, onComplete, agentName]);
 
@@ -122,11 +122,13 @@ export const AgentCard = ({
       cardState === "active" ? "border-white/20" : "border-white/10";
    const normalizedSteps = Math.max(totalSteps, 1);
    const baseStepTarget = 4;
-   const relativeSpeed = (baseStepTarget / normalizedSteps) * 0.35;
+   const stepDuration = 600; // ms per step
+   const totalDuration = normalizedSteps * stepDuration; // total ms for this agent
+   const baseDuration = 3000; // base duration for 4 steps
+   const speedMultiplier = baseDuration / totalDuration;
+   const relativeSpeed = speedMultiplier * 0.8; // Base speed multiplier
    const revealSpeed =
-      cardState === "active"
-         ? Math.min(Math.max(relativeSpeed, 0.15), 0.45)
-         : 0;
+      cardState === "active" ? Math.min(Math.max(relativeSpeed, 0.3), 1.2) : 0;
 
    return (
       <div

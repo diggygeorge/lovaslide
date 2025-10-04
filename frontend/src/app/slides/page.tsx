@@ -2097,24 +2097,51 @@ export default function SlidesWorkspacePage() {
    const [currentTheme, setCurrentTheme] = useState<DeckMeta["theme"]>(
       demoDeck.meta.theme
    );
+   const [slideData, setSlideData] = useState<any>(null);
 
-   const deckSlides = useMemo<SlideWithStatus[]>(
-      () =>
-         demoDeck.slides.map((slide, index) => ({
+   useEffect(() => {
+      const storedData = sessionStorage.getItem("slideData");
+      if (storedData) {
+         try {
+            const parsedData = JSON.parse(storedData);
+            setSlideData(parsedData);
+            sessionStorage.removeItem("slideData");
+         } catch (error) {
+            console.error("Failed to parse slide data:", error);
+         }
+      }
+   }, []);
+
+   const deckSlides = useMemo<SlideWithStatus[]>(() => {
+      if (slideData && slideData.slides) {
+         return slideData.slides.slides.map((slide: any, index: number) => ({
+            ...slide,
+            id: index + 1,
+            status: "Ready",
+         }));
+      } else {
+         return demoDeck.slides.map((slide, index) => ({
             ...slide,
             id: index + 1,
             status: slideStatuses[index] ?? "Draft",
-         })),
-      []
-   );
+         }));
+      }
+   }, [slideData]);
 
    const slidesCount = deckSlides.length;
    const activeSlide = deckSlides[activeSlideIndex];
    const isFirstSlide = activeSlideIndex === 0;
    const isLastSlide = activeSlideIndex === slidesCount - 1;
 
-   // Create a meta object with the current theme
-   const currentMeta = { ...demoDeck.meta, theme: currentTheme };
+   const currentMeta = useMemo(() => {
+      if (slideData && slideData.slides) {
+         return {
+            title: slideData.slides.meta.title,
+            theme: currentTheme,
+         };
+      }
+      return { ...demoDeck.meta, theme: currentTheme };
+   }, [slideData, currentTheme]);
 
    const handleSubmitNote = () => {
       if (!noteText.trim()) return;
