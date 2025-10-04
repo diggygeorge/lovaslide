@@ -154,51 +154,49 @@ async def create_slides(
         )
         print(f"✅ Slides created: {deck['meta']['total_slides']} total slides")
         
-        # Step 3: Validate the slides
+        # Step 3: Validate the slides (optional - don't fail if validation fails)
         print("🔍 Validating slide content...")
-        
-        # Create analyzed data from extracted text
-        analyzed_data = {
-            "extracted_text": text,
-            "text_length": len(text),
-            "file_info": {
-                "filename": file.filename,
-                "file_type": file_extension
-            }
+        validation_results = {
+            "total_claims": 0,
+            "valid_claims": 0,
+            "invalid_claims": 0,
+            "uncertain_claims": 0,
+            "overall_confidence": 0.0,
+            "summary": "Validation not performed",
+            "results": []
         }
         
-        # Validate claims
-        report = validation_agent.validate_claims(
-            slide_data=deck,
-            analyzed_data=analyzed_data
-        )
-        
-        # Convert validation report to dict
-        validation_results = {
-            "total_claims": report.total_claims,
-            "valid_claims": report.valid_claims,
-            "invalid_claims": report.invalid_claims,
-            "uncertain_claims": report.uncertain_claims,
-            "overall_confidence": report.overall_confidence,
-            "summary": report.summary,
-            "results": [
-                {
-                    "claim": r.claim,
-                    "status": r.status.value,
-                    "confidence_score": r.confidence_score,
-                    "explanation": r.explanation,
-                    "proof_sources": [
-                        {
-                            "title": ps.title,
-                            "url": ps.url,
-                            "snippet": ps.snippet,
-                            "reliability_score": ps.reliability_score
-                        }
-                        for ps in r.proof_sources
-                    ],
-                    "replacement_suggestion": {
-                        "suggested_replacement": r.replacement_suggestion.suggested_replacement,
-                        "explanation": r.replacement_suggestion.explanation,
+        try:
+            # Create analyzed data from extracted text
+            analyzed_data = {
+                "extracted_text": text,
+                "text_length": len(text),
+                "file_info": {
+                    "filename": file.filename,
+                    "file_type": file_extension
+                }
+            }
+            
+            # Validate claims
+            report = validation_agent.validate_claims(
+                slide_data=deck,
+                analyzed_data=analyzed_data
+            )
+            
+            # Convert validation report to dict
+            validation_results = {
+                "total_claims": report.total_claims,
+                "valid_claims": report.valid_claims,
+                "invalid_claims": report.invalid_claims,
+                "uncertain_claims": report.uncertain_claims,
+                "overall_confidence": report.overall_confidence,
+                "summary": report.summary,
+                "results": [
+                    {
+                        "claim": r.claim,
+                        "status": r.status.value,
+                        "confidence_score": r.confidence_score,
+                        "explanation": r.explanation,
                         "proof_sources": [
                             {
                                 "title": ps.title,
@@ -206,16 +204,41 @@ async def create_slides(
                                 "snippet": ps.snippet,
                                 "reliability_score": ps.reliability_score
                             }
-                            for ps in r.replacement_suggestion.proof_sources
-                        ]
-                    } if r.replacement_suggestion else None,
-                    "recommendations": r.recommendations
-                }
-                for r in report.results
-            ]
-        }
-        
-        print(f"✅ Validation complete: {report.valid_claims}/{report.total_claims} claims valid")
+                            for ps in r.proof_sources
+                        ],
+                        "replacement_suggestion": {
+                            "suggested_replacement": r.replacement_suggestion.suggested_replacement,
+                            "explanation": r.replacement_suggestion.explanation,
+                            "proof_sources": [
+                                {
+                                    "title": ps.title,
+                                    "url": ps.url,
+                                    "snippet": ps.snippet,
+                                    "reliability_score": ps.reliability_score
+                                }
+                                for ps in r.replacement_suggestion.proof_sources
+                            ]
+                        } if r.replacement_suggestion else None,
+                        "recommendations": r.recommendations
+                    }
+                    for r in report.results
+                ]
+            }
+            
+            print(f"✅ Validation complete: {report.valid_claims}/{report.total_claims} claims valid")
+            
+        except Exception as validation_error:
+            print(f"⚠️ Validation failed: {str(validation_error)}")
+            print("📝 Continuing without validation...")
+            validation_results = {
+                "total_claims": 0,
+                "valid_claims": 0,
+                "invalid_claims": 0,
+                "uncertain_claims": 0,
+                "overall_confidence": 0.0,
+                "summary": f"Validation failed: {str(validation_error)}",
+                "results": []
+            }
         
         # Return the complete response
         return {

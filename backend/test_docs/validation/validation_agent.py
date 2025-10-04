@@ -14,7 +14,10 @@ from enum import Enum
 import openai
 from dotenv import load_dotenv
 import time
-from . import config
+try:
+    from . import config
+except ImportError:
+    import config
 
 # Load environment variables
 load_dotenv()
@@ -70,6 +73,11 @@ class ValidationAgent:
     using ChatGPT API for fact-checking and verification with proof sources.
     """
     
+    # Class variables to track rate limiting and disable web searches if needed
+    _last_search_time = 0
+    _rate_limited = False
+    _rate_limit_reset_time = 0
+    
     def __init__(self, api_key: Optional[str] = None, serpapi_key: Optional[str] = None):
         """
         Initialize the validation agent
@@ -88,6 +96,41 @@ class ValidationAgent:
         
         self.client = openai.OpenAI(api_key=self.api_key)
         self.model = config.DEFAULT_MODEL  # Using GPT-4 for better accuracy
+    
+    def _check_rate_limit(self) -> bool:
+        """
+        Check if we should skip web searches due to rate limiting
+        
+        Returns:
+            True if we should proceed with searches, False if we should skip
+        """
+        current_time = time.time()
+        
+        # If we're currently rate limited, check if enough time has passed to reset
+        if ValidationAgent._rate_limited:
+            if current_time > ValidationAgent._rate_limit_reset_time:
+                print("✅ Rate limit reset - resuming web searches")
+                ValidationAgent._rate_limited = False
+            else:
+                remaining_time = ValidationAgent._rate_limit_reset_time - current_time
+                print(f"⚠️ Still rate limited - {remaining_time:.0f}s remaining")
+                return False
+        
+        time_since_last_search = current_time - ValidationAgent._last_search_time
+        
+        # If less than 15 seconds since last search, skip to avoid rate limits
+        if time_since_last_search < 15:
+            print(f"⚠️ Skipping web search due to rate limiting (last search {time_since_last_search:.1f}s ago)")
+            return False
+        
+        ValidationAgent._last_search_time = current_time
+        return True
+    
+    def _handle_rate_limit(self):
+        """Handle rate limiting by disabling web searches for a period"""
+        ValidationAgent._rate_limited = True
+        ValidationAgent._rate_limit_reset_time = time.time() + 300  # Disable for 5 minutes
+        print("🚫 Rate limit hit - disabling web searches for 5 minutes")
         
     def validate_claims(self, 
                        slide_data: Dict[str, Any], 
@@ -102,8 +145,8 @@ class ValidationAgent:
         Returns:
             ValidationReport with validation results
         """
-        # Extract claims from slide data
-        claims = self._extract_claims(slide_data)
+        # Extract only the first 5 claims from slide data
+        claims = self._extract_claims(slide_data, max_claims=5)
         
         # Validate each claim
         validation_results = []
@@ -115,33 +158,59 @@ class ValidationAgent:
         report = self._generate_validation_report(validation_results)
         return report
     
-    def _extract_claims(self, slide_data: Dict[str, Any]) -> List[str]:
+    def _extract_claims(self, slide_data: Dict[str, Any], max_claims: int = 5) -> List[str]:
         """
-        Extract verifiable claims from slide data
+        Extract verifiable claims from slide data, limited to max_claims
         
         Args:
             slide_data: Dictionary containing slide content
+            max_claims: Maximum number of claims to extract
             
         Returns:
-            List of claims to validate
+            List of claims to validate (limited to max_claims)
         """
         claims = []
         
         # Extract text content from slides
         if 'slides' in slide_data:
             for slide in slide_data['slides']:
-                if 'content' in slide:
-                    # Extract factual statements from slide content
-                    slide_claims = self._extract_factual_statements(slide['content'])
-                    claims.extend(slide_claims)
+                # Stop if we already have enough claims
+                if len(claims) >= max_claims:
+                    break
+                    
+                # Combine title, bullets, and notes into content for claim extraction
+                slide_content_parts = []
+                
+                if 'title' in slide and slide['title']:
+                    slide_content_parts.append(slide['title'])
+                
+                if 'bullets' in slide and slide['bullets']:
+                    slide_content_parts.extend(slide['bullets'])
+                
+                if 'notes' in slide and slide['notes']:
+                    slide_content_parts.append(slide['notes'])
+                
+                if slide_content_parts:
+                    slide_content = ' '.join(slide_content_parts)
+                    # Extract factual statements from combined slide content
+                    slide_claims = self._extract_factual_statements(slide_content)
+                    
+                    # Add claims up to the limit
+                    for claim in slide_claims:
+                        if len(claims) >= max_claims:
+                            break
+                        claims.append(claim)
         
-        # Extract data points and statistics
-        if 'data_points' in slide_data:
+        # Extract data points and statistics (legacy support) - only if we haven't reached the limit
+        if 'data_points' in slide_data and len(claims) < max_claims:
             for data_point in slide_data['data_points']:
+                if len(claims) >= max_claims:
+                    break
                 if 'value' in data_point and 'description' in data_point:
                     claim = f"{data_point['description']}: {data_point['value']}"
                     claims.append(claim)
         
+        print(f"✅ Extracted {len(claims)} claims for validation")
         return claims
     
     def _extract_factual_statements(self, content: str) -> List[str]:
@@ -156,16 +225,20 @@ class ValidationAgent:
         """
         prompt = f"""
         Analyze the following text and extract factual statements that can be verified.
-        Focus on:
-        - Statistics and numerical data
-        - Dates and time references
-        - Specific claims about facts
-        - Comparisons and percentages
-        - Technical specifications
+        
+        IMPORTANT: Extract ALL factual statements, even if they seem obvious. Include:
+        - Statistics and numerical data (e.g., "42% of workforce", "$2,000 per employee")
+        - Dates and time references (e.g., "in 2023", "Q3 results")
+        - Specific claims about facts (e.g., "companies invest", "workforce works")
+        - Comparisons and percentages (e.g., "increased by 25%", "26% work hybrid")
+        - Technical specifications (e.g., "cloud-based tools", "virtual reality")
+        - Business facts (e.g., "market share", "revenue growth")
+        - Any statement that makes a claim about reality that can be fact-checked
         
         Text: {content}
         
-        Return only the factual statements, one per line. Do not include opinions or subjective statements.
+        Return ONLY the factual statements, one per line. Extract everything that could potentially be fact-checked.
+        Do not say "no factual statements" - if there's any content, extract the factual parts.
         """
         
         try:
@@ -261,7 +334,7 @@ class ValidationAgent:
     
     def _search_for_proof_sources(self, claim: str) -> List[ProofSource]:
         """
-        Search for proof sources using web search
+        Search for proof sources using web search with improved rate limiting
         
         Args:
             claim: The claim to search for
@@ -272,52 +345,67 @@ class ValidationAgent:
         if not self.serpapi_key:
             return []
         
+        # Check rate limiting before making requests
+        if not self._check_rate_limit():
+            return []
+        
         try:
-            # Use SerpAPI for web search with multiple query variations
+            # Use SerpAPI for web search with reduced query variations to avoid rate limits
             search_queries = [
                 f'"{claim}" verification fact check',
-                f'"{claim}" source evidence',
-                f'"{claim}" data statistics',
-                f'"{claim}" research study',
-                f'"{claim}" official report'
+                f'"{claim}" source evidence'
             ]
             
             all_sources = []
             
-            for search_query in search_queries:
-                params = {
-                    'q': search_query,
-                    'api_key': self.serpapi_key,
-                    'engine': 'google',
-                    'num': 3
-                }
-                
-                response = requests.get('https://serpapi.com/search', params=params)
-                response.raise_for_status()
-                
-                data = response.json()
-                
-                if 'organic_results' in data:
-                    for result in data['organic_results']:
-                        source = ProofSource(
-                            title=result.get('title', ''),
-                            url=result.get('link', ''),
-                            snippet=result.get('snippet', ''),
-                            reliability_score=self._calculate_reliability_score(result)
-                        )
-                        # Avoid duplicates
-                        if not any(s.url == source.url for s in all_sources):
-                            all_sources.append(source)
-                
-                # Add delay to avoid rate limiting
-                time.sleep(config.SEARCH_DELAY)
+            for i, search_query in enumerate(search_queries):
+                try:
+                    params = {
+                        'q': search_query,
+                        'api_key': self.serpapi_key,
+                        'engine': 'google',
+                        'num': 2  # Reduced from 3 to 2
+                    }
+                    
+                    response = requests.get('https://serpapi.com/search', params=params, timeout=10)
+                    
+                    # Handle rate limiting specifically
+                    if response.status_code == 429:
+                        print(f"⚠️ SerpAPI rate limit hit for claim: {claim[:50]}...")
+                        self._handle_rate_limit()
+                        return []  # Return empty results and disable future searches
+                    
+                    response.raise_for_status()
+                    
+                    data = response.json()
+                    
+                    if 'organic_results' in data:
+                        for result in data['organic_results']:
+                            source = ProofSource(
+                                title=result.get('title', ''),
+                                url=result.get('link', ''),
+                                snippet=result.get('snippet', ''),
+                                reliability_score=self._calculate_reliability_score(result)
+                            )
+                            # Avoid duplicates
+                            if not any(s.url == source.url for s in all_sources):
+                                all_sources.append(source)
+                    
+                    # Increased delay to avoid rate limiting (5 seconds between requests)
+                    if i < len(search_queries) - 1:  # Don't sleep after the last query
+                        time.sleep(5)
+                        
+                except requests.exceptions.RequestException as e:
+                    print(f"⚠️ SerpAPI request failed for query {i+1}: {e}")
+                    # Continue with next query instead of failing completely
+                    continue
             
-            # Return top sources by reliability
+            # Return top sources by reliability (reduced to 3 to avoid overwhelming)
             all_sources.sort(key=lambda x: x.reliability_score, reverse=True)
-            return all_sources[:5]  # Return more sources for better coverage
+            return all_sources[:3]
             
         except Exception as e:
-            print(f"Error searching for proof sources: {e}")
+            print(f"⚠️ Error searching for proof sources: {e}")
             return []
     
     def _calculate_reliability_score(self, search_result: Dict[str, Any]) -> float:

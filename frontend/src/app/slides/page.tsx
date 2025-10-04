@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ValidationResults } from "@/components/ui/validation-results";
 import { cn } from "@/lib/utils";
 import {
    Bot,
@@ -2141,6 +2142,7 @@ export default function SlidesWorkspacePage() {
       demoDeck.meta.theme
    );
    const [slideData, setSlideData] = useState<any>(null);
+  const [validationData, setValidationData] = useState<any>(null);
    const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
    const [isListening, setIsListening] = useState(false);
    const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -2386,18 +2388,22 @@ export default function SlidesWorkspacePage() {
       autoSubmitVoiceRef.current = autoSubmitVoice;
    }, [autoSubmitVoice]);
 
-   useEffect(() => {
-      const storedData = sessionStorage.getItem("slideData");
-      if (storedData) {
-         try {
-            const parsedData = JSON.parse(storedData);
-            setSlideData(parsedData);
-            sessionStorage.removeItem("slideData");
-         } catch (error) {
-            console.error("Failed to parse slide data:", error);
-         }
-      }
-   }, []);
+  useEffect(() => {
+     const storedData = sessionStorage.getItem("slideData");
+     if (storedData) {
+        try {
+           const parsedData = JSON.parse(storedData);
+           setSlideData(parsedData);
+           // Extract validation data if it exists
+           if (parsedData.validation) {
+              setValidationData(parsedData.validation);
+           }
+           sessionStorage.removeItem("slideData");
+        } catch (error) {
+           console.error("Failed to parse slide data:", error);
+        }
+     }
+  }, []);
 
    const deckSlides = useMemo<SlideWithStatus[]>(() => {
       if (slideData && slideData.slides) {
@@ -3304,8 +3310,36 @@ export default function SlidesWorkspacePage() {
                         </div>
                      </CardContent>
                   </Card>
+
                </div>
             </div>
+
+            {/* Validation Results - Separate row at bottom */}
+            {validationData && validationData.total_claims > 0 && (
+               <div className="container mx-auto px-6 pb-10">
+                  <Card className="w-full border-border/60">
+                     <CardHeader className="space-y-1">
+                        <CardTitle className="text-lg font-semibold text-foreground">
+                           Fact Validation
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                           Click on highlighted text to see validation details and proof sources.
+                        </p>
+                     </CardHeader>
+                     <div className="h-px bg-border/60" />
+                     <CardContent className="p-6">
+                        <ValidationResults 
+                           validation={validationData}
+                           slideContent={
+                              activeSlide?.title + " " + 
+                              (activeSlide?.bullets?.join(" ") || "") + " " +
+                              (activeSlide?.notes || "")
+                           }
+                        />
+                     </CardContent>
+                  </Card>
+               </div>
+            )}
          </main>
 
          {isVoicePanelOpen && (
