@@ -14,7 +14,7 @@ from enum import Enum
 import openai
 from dotenv import load_dotenv
 import time
-import config
+from . import config
 
 # Load environment variables
 load_dotenv()
