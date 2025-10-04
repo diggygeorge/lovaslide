@@ -45,6 +45,19 @@ class Analyzer:
            - Key facts or insights
            - Easy to understand
            - Directly relevant to the slide topic
+        3. A suggested layout from these options:
+           - "title": Simple title slide (minimal content)
+           - "title-bullets": Title with bullet points
+           - "two-col": Two-column layout for comparisons or lists
+           - "image-left": Content with image on the left
+           - "image-right": Content with image on the right
+        
+        Choose the layout that best fits the slide's content and purpose:
+        - Use "title" for simple, impactful statements
+        - Use "title-bullets" for informational content with key points
+        - Use "two-col" for comparisons, pros/cons, or structured lists
+        - Use "image-left" for technical concepts, processes, or architecture
+        - Use "image-right" for results, outcomes, or visual data
         
         Format your response as JSON with this structure:
         {{
@@ -55,7 +68,8 @@ class Analyzer:
                         "First key point",
                         "Second key point",
                         "Third key point"
-                    ]
+                    ],
+                    "suggested_layout": "title-bullets"
                 }}
             ]
         }}
@@ -65,7 +79,7 @@ class Analyzer:
         """
         
         messages = [
-            {"role": "system", "content": "You are an expert presentation designer who creates clear, engaging slides from any text content. Always respond with valid JSON."},
+            {"role": "system", "content": "You are an expert presentation designer who creates clear, engaging slides from any text content. You excel at choosing the most appropriate layout for each slide based on its content and purpose. Always respond with valid JSON and include the suggested_layout for each slide."},
             {"role": "user", "content": prompt}
         ]
         
@@ -215,6 +229,170 @@ class Analyzer:
         
         print(f"Slides data exported to {filename}")
     
+    def generate_presentation_title(self, text: str) -> str:
+        """
+        Generate a presentation title based on the text content.
+        
+        Args:
+            text: Raw text to analyze
+            
+        Returns:
+            Generated presentation title
+        """
+        prompt = f"""
+        Analyze the following text and generate a compelling, concise presentation title.
+        
+        The title should:
+        1. Be 3-8 words long
+        2. Capture the main theme or topic
+        3. Be engaging and professional
+        4. Work well as a presentation title
+        
+        Respond with just the title, no quotes or additional text.
+        
+        Text to analyze:
+        {text}
+        """
+        
+        messages = [
+            {"role": "system", "content": "You are an expert presentation designer who creates compelling titles. Always respond with just the title, no quotes or additional formatting."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-5-chat-latest",
+                messages=messages,
+                max_completion_tokens=50,
+                temperature=0.7
+            )
+            
+            title = response.choices[0].message.content.strip()
+            # Remove quotes if present
+            title = title.strip('"\'')
+            return title
+            
+        except Exception as e:
+            print(f"Error generating title: {e}")
+            return "Generated Presentation"
+    
+    def create_deck_format(self, text: str, max_slides: int = 5, title: str = None) -> Dict[str, Any]:
+        """
+        Create a deck format presentation directly from text.
+        
+        Args:
+            text: Raw text to analyze
+            max_slides: Maximum number of slides to generate (will be 6 total: 1 title + 5 content)
+            title: Optional custom title for the presentation
+            
+        Returns:
+            Dictionary in deck format with meta and slides
+        """
+        # Generate title if not provided
+        if not title:
+            title = self.generate_presentation_title(text)
+        
+        # Extract content slides (max_slides will be content slides, not including title slide)
+        slides = self.extract_key_points(text, max_slides)
+        
+        # Create the deck structure
+        deck = {
+            "meta": {
+                "title": title,
+                "theme": "light",
+                "total_slides": len(slides) + 1,  # +1 for title slide
+                "generated_at": "",
+                "model_used": "gpt-5-chat-latest"
+            },
+            "slides": []
+        }
+        
+        # Add title slide as the first slide
+        title_slide = {
+            "layout": "title",
+            "title": title,
+            "notes": "Set the tone and highlight the main topic upfront.",
+        }
+        deck["slides"].append(title_slide)
+        
+        # Convert each content slide to deck format
+        for i, slide in enumerate(slides):
+            # Use LLM-suggested layout
+            layout = slide.get('suggested_layout', 'title-bullets')  # Default fallback
+            
+            deck_slide = {
+                "layout": layout,
+                "title": slide.get('title', ''),
+                "notes": self._generate_slide_notes(slide, i + 1),
+            }
+            
+            # Add bullets if they exist
+            if slide.get('bullets'):
+                deck_slide["bullets"] = slide['bullets']
+            
+            # Add media if applicable
+            if layout in ['image-left', 'image-right', 'image-center']:
+                deck_slide["media"] = [
+                    {
+                        "kind": "image",
+                        "url": "https://placehold.co/800x600/png",
+                        "alt": f"Slide {i+2} image"  # +2 because title slide is slide 1
+                    }
+                ]
+            
+            deck["slides"].append(deck_slide)
+        
+        return deck
+    
+    def _generate_slide_notes(self, slide: Dict[str, Any], slide_index: int) -> str:
+        """
+        Generate speaker notes for a slide.
+        
+        Args:
+            slide: Slide data dictionary
+            slide_index: Index of the slide (0-based)
+            
+        Returns:
+            Speaker notes string
+        """
+        title = slide.get('title', '')
+        bullets = slide.get('bullets', [])
+        
+        # Generate contextual notes based on slide content
+        if slide_index == 0:
+            return "Set the tone and highlight the main topic upfront."
+        elif 'agenda' in title.lower() or 'overview' in title.lower():
+            return "Keep it short and give the audience a clear roadmap."
+        elif 'problem' in title.lower() or 'challenge' in title.lower():
+            return "These are the key challenges we need to address."
+        elif 'solution' in title.lower() or 'approach' in title.lower():
+            return "Here's how we solve the identified problems."
+        elif 'architecture' in title.lower() or 'design' in title.lower():
+            return "This is the technical foundation of our approach."
+        elif 'performance' in title.lower() or 'results' in title.lower():
+            return "These are the measurable outcomes and benefits."
+        else:
+            return f"Key points about {title.lower()}."
+    
+    def export_deck_format(self, deck: Dict[str, Any], filename: str = "deck_data.json"):
+        """
+        Export deck format data to JSON file.
+        
+        Args:
+            deck: Deck format data from create_deck_format()
+            filename: Output filename
+        """
+        import json
+        import os
+        
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(deck, f, indent=2, ensure_ascii=False)
+        
+        print(f"Deck format data exported to {filename}")
+    
     def print_slides(self, presentation: Dict[str, Any]):
         """
         Print slides to console in a formatted way.
@@ -272,14 +450,22 @@ def main():
         # Initialize Analyzer
         analyzer = Analyzer()
         
-        # Create presentation
-        presentation = analyzer.create_slides(sample_text, max_slides=5)
+        # Create presentation in deck format (will generate title automatically)
+        deck = analyzer.create_deck_format(sample_text, max_slides=5)
         
         # Print to console
-        analyzer.print_slides(presentation)
+        print(f"\n🎯 {deck['meta']['title']}")
+        print("=" * 50)
         
-        # Export slides data to JSON
-        analyzer.export_slides_data(presentation, "backend/data/slides_data.json")
+        for i, slide in enumerate(deck['slides'], 1):
+            print(f"\n📊 Slide {i}: {slide['title']} (layout: {slide['layout']})")
+            print("-" * 30)
+            for bullet in slide.get('bullets', []):
+                print(f"• {bullet}")
+            print(f"Notes: {slide['notes']}")
+        
+        # Export deck format to JSON
+        analyzer.export_deck_format(deck, "data/deck_format_data.json")
         
     except ValueError as e:
         print(f"Error: {e}")
