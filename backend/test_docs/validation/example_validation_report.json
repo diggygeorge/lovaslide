@@ -1,0 +1,608 @@
+{
+  "total_claims": 20,
+  "valid_claims": 19,
+  "invalid_claims": 0,
+  "uncertain_claims": 1,
+  "overall_confidence": 0.95,
+  "summary": "Validation Summary: 19/20 claims validated successfully\nInvalid claims: 0, Uncertain claims: 1\nOverall confidence: 0.95\n❓ Some claims need manual review",
+  "results": [
+    {
+      "claim": "- Revenue increased by 25% compared to Q2 2023",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim that revenue increased by 25% compared to Q2 2023 is supported by the provided data. The revenue for Q2 2023 is listed as $2,000,000 and the revenue for Q3 2023 is listed as $2,500,000. This is a 25% increase, which is also confirmed by the 'revenue_growth_rate' statistic of 0.25 in the provided data. The key findings also mention a 'Revenue growth of 25% from Q2 to Q3 2023'. Therefore, the claim is valid.",
+      "proof_sources": [
+        {
+          "title": "U.S. GDP Q2'25 Growth Revised Up; Profits Improve",
+          "url": "https://www.haver.com/articles/u-s-gdp-q2-25-growth-revised-up-profits-improve",
+          "snippet": "Real GDP grew 3.3% (SAAR) during the second quarter of 2025, revised from a 3.0% gain reported initially. The increase followed an unrevised ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Tech steals the Q2 earnings show",
+          "url": "https://www.rbcwealthmanagement.com/en-us/insights/tech-steals-the-q2-earnings-show",
+          "snippet": "Revenues are on pace to climb 6.3 percent y/y versus the 4.0 percent pre-reporting season consensus forecast. But the bulk of the Q2 ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "US ecommerce sales growth continues to slow in Q2",
+          "url": "https://www.digitalcommerce360.com/article/quarterly-online-sales/",
+          "snippet": "Q2 2025 marks the closest that U.S. ecommerce and total retail sales' positive growth have been aside from during the COVID-19 pandemic.",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": [
+        "No recommendations as the claim is valid and matches the provided data."
+      ]
+    },
+    {
+      "claim": "- Market share reached 15% in the technology sector",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim that the market share reached 15% in the technology sector is valid. This is confirmed by the provided data, specifically the 'market_share' field which is set at 0.15, and the 'market_share_percentage' field which is set at 15. Additionally, the key findings also state that the market share was maintained at 15% in the technology sector.",
+      "proof_sources": [
+        {
+          "title": "The new growth game: Beating the market with digital and ...",
+          "url": "https://www.mckinsey.com/~/media/McKinsey/Business%20Functions/Marketing%20and%20Sales/Our%20Insights/The%20new%20growth%20game/The-new-growth-game-Web.pdf",
+          "snippet": "percentage points came from the market growth of the segments in its portfolio, 3.0 from M&A activity, and a marginal 0.1 from market share performance. The ...",
+          "reliability_score": 0.7
+        },
+        {
+          "title": "2025 technology industry outlook",
+          "url": "https://www.deloitte.com/us/en/insights/industry/technology/technology-media-telecom-outlooks/technology-industry-outlook.html",
+          "snippet": "The technology industry appears poised for growth in 2025, aided by increased IT spending, AI investments, and a renewed focus on innovation.",
+          "reliability_score": 0.7
+        },
+        {
+          "title": "Technology Sector Investment Analysis - First in the Series",
+          "url": "https://www.bankchampaign.com/technology-sector-investment-analysis-first-in-the-series/",
+          "snippet": "This report analyzes the current state of the technology sector, identifies key players across market capitalizations, and provides a detailed financial and ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": null,
+      "recommendations": []
+    },
+    {
+      "claim": "- Customer satisfaction score improved to 4.8/5.0",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim that the customer satisfaction score improved to 4.8/5.0 is valid. This is confirmed by the provided data, which shows a customer satisfaction score of 4.8. The key findings also mention that customer satisfaction improved to 4.8/5.0. The proof sources from the web search do not directly support this claim, but they do not contradict it either. They discuss the concept of customer satisfaction scores and ways to improve them, but do not provide specific data that could be used to validate or invalidate this claim.",
+      "proof_sources": [
+        {
+          "title": "4 Customer Satisfaction Metrics (NPS, CSAT, CES, & More)",
+          "url": "https://missiveapp.com/blog/customer-satisfaction-metrics",
+          "snippet": "A CSAT score can range from 0% to 100%. A score under 50% is concerning, because it means you have more unsatisfied customers completing your ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "9 Ways To Improve Your CSAT Score and Response Rate",
+          "url": "https://www.gorgias.com/blog/improve-csat-score",
+          "snippet": "To improve CSAT, review low scores, reach out to low-scoring customers, automate tasks, improve product experience, and automate CSAT surveys.",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "CSAT: Definition, Calculation & 2025 Benchmarks",
+          "url": "https://www.retently.com/blog/customer-satisfaction-score-csat/",
+          "snippet": "CSAT is a survey methodology you can use to track customer satisfaction levels. Here's a practical guide for an in-depth CSAT overview.",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": [
+        "In future, it would be helpful to have more specific proof sources that directly relate to the claim being validated. For example, historical data showing the previous customer satisfaction score would allow for a more robust validation of the claim that the score has improved."
+      ]
+    },
+    {
+      "claim": "- Operating expenses decreased by 10%",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim is valid. The provided data shows that operating expenses decreased by 10% from Q2 2023 to Q3 2023.",
+      "proof_sources": [
+        {
+          "title": "Form S-4",
+          "url": "https://www.sec.gov/Archives/edgar/data/1634997/000119312515256036/d46301ds4.htm",
+          "snippet": "Iberdrola USA's operating expenses decreased by 10% from $1.1 billion for the three months ended March 31, 2014 to $1.0 billion for the three months ended ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "25 June 2025 PHILIPPINE DEALING AND EXCHANGE ...",
+          "url": "https://www.pds.com.ph/wp-content/uploads/2025/06/Disclosure-No.-2229-2025-Information-Statement-for-Annual-or-Special-Stockholders-Meeting-Amended-2.pdf",
+          "snippet": "... Operating Expenses decreased by 10% or PhP 39 million. Other Operating Expenses during the period amounted to P344 million, lower by P39 ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Stickiness of Operating Expense in Asset, Liability, and ...",
+          "url": "https://journals2.ums.ac.id/reaksi/article/view/8649/3994",
+          "snippet": "The combination of β1+β2=0.1027 shows that operating expenses decreased by 10% per 1% decrease in operating income. The estimated value of β3 =0.0557, which ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": null,
+      "recommendations": []
+    },
+    {
+      "claim": "- New product launch contributed 30% to total revenue",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim is valid as the calculated percentage contribution of the new product to the total revenue matches the claim. The calculation is (new product revenue / total revenue) * 100 = (750000 / 2500000) * 100 = 30%.",
+      "proof_sources": [],
+      "replacement_suggestion": null,
+      "recommendations": []
+    },
+    {
+      "claim": "- Total revenue is $2.5M, up from $2.0M in Q2.",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim is valid as it matches the provided data. The total revenue for Q3 2023 is indeed $2.5M, which is up from $2.0M in Q2 2023. This is confirmed by the 'revenue_q2_2023' and 'revenue_q3_2023' fields in the extracted data, as well as the 'Revenue growth of 25% from Q2 to Q3 2023' and 'Total revenue reached $2.5M in Q3' key findings. The web sources do not provide additional information relevant to this specific claim.",
+      "proof_sources": [
+        {
+          "title": "goos-20220403",
+          "url": "https://www.sec.gov/Archives/edgar/data/1690511/000169051122000011/goos-20220403.htm",
+          "snippet": "Revenue generated from our DTC channel represented 67.4% of total revenue for the year ended April 3, 2022 compared to 58.3% for the year ended March 28, 2021.",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "Quarterly Activities Report and Investor Presentation",
+          "url": "https://www.impedimed.com/wp-content/uploads/2024/05/Q1FY24-Report.pdf",
+          "snippet": "Includes $2.0m in Core SaaS Revenue, +20% YoY. •. Growth achieved prior to broad reimbursement. •. Decline in Total Revenue of 12% YoY: •. Anticipated ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "2025 Interim Results – Company Announcement - FT.com",
+          "url": "https://markets.ft.com/data/announce/detail?dockey=1323-17241043-6PGFQ45V7M9N50M4NBUC1LU36B",
+          "snippet": "Revenue growth delivered across all segments; strong performance in Q1 (revenue growth +26%) offset in Q2 by negative impact from US government ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": []
+    },
+    {
+      "claim": "- There are 1,250 active customers, a 15% increase.",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim matches the provided data. The 'active_customers' field in the extracted data shows a value of 1250, which matches the claim. Additionally, the 'customer_growth_rate' field in the statistics shows a value of 0.15, which indicates a 15% increase, also matching the claim.",
+      "proof_sources": [
+        {
+          "title": "A Survey on Automated Fact-Checking",
+          "url": "https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00454/109469/A-Survey-on-Automated-Fact-Checking",
+          "snippet": "In this paper, we survey automated fact-checking stemming from natural language processing, and discuss its connections to related tasks and disciplines.",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "Consumer Reporting Rule SBREFA Final Report",
+          "url": "https://files.consumerfinance.gov/f/documents/cfpb_sbrefa-final-report_consumer-reporting-rulemaking_2024-01.pdf",
+          "snippet": "Under the Small Business Regulatory Enforcement Fairness Act (SBREFA), which amended the. Regulatory Flexibility Act, the Consumer Financial Protection ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "Designing for dissemination among public health and ...",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10877519/",
+          "snippet": "Information from this study will guide the co-design of dissemination products (e.g., research findings and interventions) and strategies engaging relevant ...",
+          "reliability_score": 0.9
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": [
+        "No recommendations as the claim is valid and matches the provided data."
+      ]
+    },
+    {
+      "claim": "- The average deal size is $2,000.",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim that the average deal size is $2,000 is valid. This is confirmed by the extracted data provided, which explicitly states that the 'average_deal_size' is 2000. Furthermore, the key findings also mention that the 'Average deal size remained stable at $2,000'. The proof sources from the web search do not directly validate this specific claim as they are not related to the specific context of the data provided, but they do show that an average deal size of $2,000 is plausible in certain business contexts.",
+      "proof_sources": [
+        {
+          "title": "Lessons from Gorgias: How to Close your First 1000 ...",
+          "url": "https://www.saastr.com/lessons-from-gorgias-close-sales/",
+          "snippet": "Let's look at the one from outbound. $50k came from outbound, the average deal size is $2,000, NPS is okay, and churn is not that good, we have some customers ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Move from founder-led sales to scaling a sales team",
+          "url": "https://productiveshop.com/founder-led-sales/",
+          "snippet": "Example: If five deals are closed worth $1,000, $2,000, $1,500, $3,000 and $2,500, respectively, the “Average Deal Size” is $2,000. Average ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Analyzing Conversion Rates And Sales",
+          "url": "https://fastercapital.com/topics/analyzing-conversion-rates-and-sales.html/1",
+          "snippet": "The conversion rate is 5% (50/1,000), and the average deal size is $2,000. The sales cycle length is 30 days. The sales velocity would be ($2,000 × 0.05) ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": null,
+      "recommendations": [
+        "No recommendations as the claim is valid and matches the provided data."
+      ]
+    },
+    {
+      "claim": "- The customer acquisition cost is $150.",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim that the customer acquisition cost is $150 is valid. This is confirmed by the extracted data provided, which clearly states that the 'customer_acquisition_cost' is $150. The claim is also supported by the key findings, which mention that the 'Customer acquisition cost optimized to $150'. The proof sources from the web search provide general information about what customer acquisition cost (CAC) is and how it is calculated, but they do not contradict the specific claim made here.",
+      "proof_sources": [
+        {
+          "title": "Customer Acquisition Cost (CAC): Formula, Benchmarks & ...",
+          "url": "https://www.factors.ai/blog/customer-acquisition-cost",
+          "snippet": "The formula to calculate CAC is: Customer Acquisition Cost = (Sales expenditure + Marketing expenditure) / New Customers Acquired in a given period.",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Customer Acquisition Cost (CAC): What It Is & Why It Matters",
+          "url": "https://neilpatel.com/blog/customer-acquisition-cost/",
+          "snippet": "Customer acquisition cost (CAC) refers to the total expense incurred in acquiring a new customer. Here's the basic formula: CAC = (Total Sales ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Customer Acquisition Cost – Everything You Need To Know",
+          "url": "https://www.clickfunnels.com/blog/customer-acquisition-cost/",
+          "snippet": "Customer acquisition cost (CAC) is a business metric that shows how much money on average it costs for you to acquire a new customer. It's ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": null,
+      "recommendations": []
+    },
+    {
+      "claim": "- The monthly recurring revenue is $800K.",
+      "status": "uncertain",
+      "confidence_score": 0.0,
+      "explanation": "Validation failed due to error: 'NoneType' object is not iterable",
+      "proof_sources": [],
+      "replacement_suggestion": null,
+      "recommendations": [
+        "Manual review required due to validation error"
+      ]
+    },
+    {
+      "claim": "Q3 Revenue Growth: 25%",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Q3 Revenue Growth: 25%' is valid. The provided data shows that the revenue for Q2 2023 was $2,000,000 and for Q3 2023 was $2,500,000. This is a 25% increase, which matches the claim. The 'revenue_growth_rate' statistic in the data also confirms this with a value of 0.25, representing a 25% growth rate. The key findings also state 'Revenue growth of 25% from Q2 to Q3 2023', which further supports the claim. The web search proof sources do not provide additional information relevant to this specific claim.",
+      "proof_sources": [
+        {
+          "title": "S&P Global's Q3 2025 Earnings: A Strategic Pivot in ...",
+          "url": "https://www.ainvest.com/news/global-q3-2025-earnings-strategic-pivot-shifting-economic-landscape-2510/",
+          "snippet": "for Q3 2025 reveals total revenue of $3.777 billion, an 8% year-over-year increase, driven by subscription growth in Data, Analytics & Insights ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Q3 Earnings Season Gets Underway: A Closer Look",
+          "url": "https://finance.yahoo.com/news/q3-earnings-season-gets-underway-221200894.html",
+          "snippet": "The expectation is for Q3 earnings to increase by +5.1% from the same period last year on +6% higher revenues. This would follow earnings growth ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "3 Hyper-Growth Tech Stocks to Buy in 2025",
+          "url": "https://www.aol.com/articles/3-hyper-growth-tech-stocks-082000945.html",
+          "snippet": "Let's look at three tech growth stocks that have been growing their revenue by 25% or more to consider buying this year.",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": []
+    },
+    {
+      "claim": "Market Share: 15%",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Market Share: 15%' matches the provided data. The 'market_share' field in the Extracted Data is 0.15, which is equivalent to 15%. This is also confirmed in the 'market_share_percentage' field in the Statistics data and the key finding 'Market share maintained at 15% in technology sector'. Therefore, the claim is valid.",
+      "proof_sources": [
+        {
+          "title": "MARKET-SHARE ANALYSIS",
+          "url": "https://www.anderson.ucla.edu/faculty/lee.cooper/MCI_Book/BOOKI2010.pdf",
+          "snippet": "third largest average market share (15%). The Regular Maxwell House has a strong, competitive price effect on Chock Full O'Nuts. But both. Master Blend and ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "GSMA Open Gateway: State of the Market, H1 2024",
+          "url": "https://www.gsmaintelligence.com/research/research-file-download?id=79791577&file=200624-Open-Gateway-State-of-the-Market.pdf",
+          "snippet": "Africa, by contrast, still sits considerably below its mobile market share (15%) despite it being a vibrant digital services marketplace ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Measures of Project Management Performance and Value",
+          "url": "https://www.pmsolutions.com/audio/PM_Performance_and_Value_List_of_Measures.pdf",
+          "snippet": "Includes measures such as repeat and lost customers (30%), revenue from existing customers (15%), market share (15%), customer satisfaction survey results (20%) ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": []
+    },
+    {
+      "claim": "Customer Satisfaction: 4.8/5.0",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Customer Satisfaction: 4.8/5.0' matches the provided data. Both the 'customer_satisfaction' field in the Extracted Data and the 'satisfaction_score' field in the Statistics show a value of 4.8. This is also confirmed in the Key Findings where it is stated that 'Customer satisfaction improved to 4.8/5.0'. The proof sources from the web search do not directly relate to the claim as they refer to different companies, but they do not contradict the claim either.",
+      "proof_sources": [
+        {
+          "title": "Why Trust EVA Finance AI | Transparent Lending for Skeptical ...",
+          "url": "https://yourfinancecompany.com/trust/",
+          "snippet": "• Customer satisfaction: 4.8/5.0; • Complaint rate: 0.2% (industry avg: 8.1%); • Default rate: 2.1% (industry avg: 12.3%). Real Stories Coming Soon - No Fake ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Authorized Distributor Louis Vuitton: Trusted Luxury Partner",
+          "url": "https://www.accio.com/supplier/authorized-distributor-louis-vuitton",
+          "snippet": "Guangzhou Panyu Desiqiner leads in customer satisfaction (4.8/5.0 ratings) despite slightly longer response windows. Shenzhen Bi Cheng ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Top Medical Glasses Companies in China",
+          "url": "https://www.accio.com/supplier/medical-glasses-companies-in-china",
+          "snippet": "Shenzhen-based suppliers like Vchuang Technology and Linshi Glasses lead in responsiveness (≤1h) and customer satisfaction (4.8/5.0).",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": [
+        "No recommendations as the claim is valid and matches the provided data."
+      ]
+    },
+    {
+      "claim": "Operating Expense Reduction: 10%",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The provided data shows a reduction in operating expenses from $800,000 in Q2 2023 to $720,000 in Q3 2023, which is a 10% reduction. This matches the claim 'Operating Expense Reduction: 10%'. The key findings also confirm this with the statement 'Operating expenses reduced by 10%'.",
+      "proof_sources": [
+        {
+          "title": "15 Effective Ways to Reduce Operating Costs and Expenses",
+          "url": "https://www.brex.com/spend-trends/expense-management/how-to-reduce-operating-costs-and-expenses",
+          "snippet": "We'll examine 15 proven strategies that can help your business achieve sustainable cost efficiency, backed by practical implementation steps and real-world ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "10 Tried & Tested IT Cost Reduction Strategies",
+          "url": "https://appinventiv.com/blog/it-cost-reduction-strategies/",
+          "snippet": "This blog covers the 10 proven IT cost reduction strategies that help you optimize spending, improve efficiency, and gain long-term savings.",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "10 Simple Steps to Reduce Operating Costs and Expenses",
+          "url": "https://meshpayments.com/blog/how-to-reduce-operating-costs-and-expenses/",
+          "snippet": "Tips for reducing operating costs and expenses include rethinking marketing spend, reconsidering travel budgets, identifying and addressing inefficiencies.",
+          "reliability_score": 0.9
+        }
+      ],
+      "replacement_suggestion": null,
+      "recommendations": [
+        "No recommendations as the claim is valid and matches the provided data."
+      ]
+    },
+    {
+      "claim": "New Product Revenue Contribution: 30%",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim matches the provided data. The 'new_product_contribution' in the statistics data is given as 0.3, which translates to 30%. Additionally, one of the key findings states that the 'New product contributed 30% to total revenue'.",
+      "proof_sources": [
+        {
+          "title": "Recapping Trump's Deceptive Tariff Claims",
+          "url": "https://www.factcheck.org/2025/08/recapping-trumps-deceptive-tariff-claims/",
+          "snippet": "After months of delay, higher tariffs that President Donald Trump had vowed to impose on goods imported from dozens of countries · For starters, ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "Navigating new product development: Uncovering factors ...",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10788447/",
+          "snippet": "This study aims to investigate the factors that contribute to NPD success and the challenges faced by firms throughout the development process.",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "CEOs' choice for growth: Building new businesses",
+          "url": "https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/ceos-choice-for-growth-building-new-businesses",
+          "snippet": "Business leaders and investors see now as an opportune time to build new businesses. New survey data reveals what's really needed.",
+          "reliability_score": 0.7
+        }
+      ],
+      "replacement_suggestion": null,
+      "recommendations": [
+        "No recommendations as the claim is valid."
+      ]
+    },
+    {
+      "claim": "Total Revenue Q3: $2.5M",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Total Revenue Q3: $2.5M' matches the provided data. The 'total_revenue_q3' field in the Extracted Data section is listed as 2500000, which is equivalent to $2.5M. This is also confirmed in the Key Findings section, which states 'Total revenue reached $2.5M in Q3'. The web sources do not provide additional information relevant to this specific claim.",
+      "proof_sources": [
+        {
+          "title": "goos-20220403",
+          "url": "https://www.sec.gov/Archives/edgar/data/1690511/000169051122000011/goos-20220403.htm",
+          "snippet": "In this quarter we announced that we have suspended all wholesale and e-Commerce sales to Russia, which represented less than 1% of total annual revenue in ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "BIO-key Reports Q3'24 Revenue Rose 18% to $2.1M ...",
+          "url": "https://www.globenewswire.com/news-release/2024/11/14/2981709/0/en/bio-key-reports-q3-24-revenue-rose-18-to-2-1m-reduced-q3-24-net-loss-and-improved-cash-position-hosts-investor-call-tomorrow-fri-nov-15th-10am-et.html",
+          "snippet": "Q3'24 revenues rose 18% to $2.1M from $1.8M in Q3'23, principally due to a $0.5M increase in license revenue related to expanded software ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "Document",
+          "url": "https://www.sec.gov/Archives/edgar/data/0001474098/000147409825000072/a050125earningsreleaseex991.htm",
+          "snippet": "▫Same-Property Total RevPAR: Increased 2.1% vs. Q1 2024; excluding Los Angeles hotels, Same-Property Total RevPAR surged a strong 6.0%.",
+          "reliability_score": 0.9
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": []
+    },
+    {
+      "claim": "Active Customers: 1,250",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Active Customers: 1,250' matches the provided data. The 'active_customers' field in the extracted data is 1250, and the key findings also mention that the 'Active customer base grew to 1,250'. There are no inconsistencies or contradictions in the provided data, and the claim is factually accurate based on the provided data.",
+      "proof_sources": [
+        {
+          "title": "The Power of Consumer Stories in Digital Marketing",
+          "url": "https://sloanreview.mit.edu/article/the-power-of-consumer-stories-in-digital-marketing/",
+          "snippet": "New research finds that sharing consumers' positive stories about a brand can be a highly effective online marketing strategy.",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "From 250000 passers to 5000 memories: The real math of ...",
+          "url": "https://www.digitalsignagetoday.com/blogs/from-250000-passers-to-5000-memories-the-real-math-of-dooh-impact/",
+          "snippet": "Eye tracking studies suggest that between 25% and 40% of visible contacts become conscious viewers. That means between 4,700 and 12,500 people ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "AI Leaders Outpace Laggards with Double the Revenue ...",
+          "url": "https://www.bcg.com/press/30september2025-ai-leaders-outpace-laggards-revenue-growth-cost-savings",
+          "snippet": "Based on a global survey of 1,250 senior executives and AI decision makers across nine industries and more than 25 sectors, the study ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": []
+    },
+    {
+      "claim": "Average Deal Size: $2,000",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Average Deal Size: $2,000' is valid. The provided data explicitly states that the 'average_deal_size' is $2,000. This is also confirmed in the 'Key Findings' section, which states 'Average deal size remained stable at $2,000'. Therefore, the claim is consistent with the provided data. The proof sources from the web search do not provide additional information relevant to this specific claim, but they are not needed in this case as the provided data is sufficient to validate the claim.",
+      "proof_sources": [
+        {
+          "title": "2024 National Money Laundering Risk Assessment (NMLRA)",
+          "url": "https://home.treasury.gov/system/files/136/2024-National-Money-Laundering-Risk-Assessment.pdf",
+          "snippet": "Money laundering enables criminal activity and is necessary to disguise ill-gotten gains. It facilitates crime, distorts markets, and has a ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "A scammer sent me a $2000 check claiming that I would ...",
+          "url": "https://www.reddit.com/r/legaladvice/comments/vcx5jy/a_scammer_sent_me_a_2000_check_claiming_that_i/",
+          "snippet": "",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Shutdowns and Market Highs: The Top 3 Questions ...",
+          "url": "https://www.jpmorgan.com/insights/markets-and-economy/top-market-takeaways/tmt-shutdowns-and-market-highs-the-top-3-questions-investors-are-asking-now",
+          "snippet": "We explore what the shutdown, Federal Reserve cuts and the AI rally mean for investors.",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": null,
+      "recommendations": []
+    },
+    {
+      "claim": "Customer Acquisition Cost: $150",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Customer Acquisition Cost: $150' is valid. The provided data clearly states that the 'customer_acquisition_cost' is $150. This is also supported by the key findings which mention that the 'Customer acquisition cost optimized to $150'. Additionally, the proof sources from the web search also mention a customer acquisition cost of $150, further validating the claim.",
+      "proof_sources": [
+        {
+          "title": "(PDF) Option Pricing of Mobile Virtual Network Operators",
+          "url": "https://www.academia.edu/97874929/Option_Pricing_of_Mobile_Virtual_Network_Operators",
+          "snippet": "... Customer acquisition cost: $150/customer. MNO as a catalyst for growth of market share. The new design process is called holistic design. 9 Supporting ...",
+          "reliability_score": 0.9
+        },
+        {
+          "title": "How Much Does AI-Powered Payment Recovery Cost for 50k ...",
+          "url": "https://www.slickerhq.com/blog/ai-powered-payment-recovery-cost-50k-subscribers-roi-analysis",
+          "snippet": "Customer acquisition cost: $150. Lifetime value per recovered customer: $600 ($25 × 24 months). Extended ROI Analysis (Typical Scenario):. Monthly recovered ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "TileBot White Paper",
+          "url": "https://www.rubo.ai/tilebot-white-paper",
+          "snippet": "Customer acquisition cost: $150-300 vs. Tile Bot's $45-90. Digital Competitors: Limited image search capabilities. No natural language processing. Static ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Calculating Lost Customer Lifetime Value: Insights and Strategies",
+          "url": "https://www.cliffsnotes.com/study-notes/24632474",
+          "snippet": "... Customer Acquisition cost = $150 (To be considered for the first year) Annual Discount rate (r) = 10% Total number of years = 8 (2 years (before deflection) ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "MARKETING_9_0_eaxm_ans.pd.docx - Marketing Analytics and ...",
+          "url": "https://www.collegesidekick.com/study-docs/21430585",
+          "snippet": "... Customer acquisition cost: $150 - Monthly servicing cost per customer: $10 - Discount rate: 10% annually Use the formula: CLV = Margin * (Retention Rate ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": [
+        "No recommendations as the claim is valid and supported by the provided data and proof sources."
+      ]
+    },
+    {
+      "claim": "Monthly Recurring Revenue: $800K",
+      "status": "valid",
+      "confidence_score": 1.0,
+      "explanation": "The claim 'Monthly Recurring Revenue: $800K' matches the provided data exactly. The 'monthly_recurring_revenue' field in the extracted data is $800K, and this is also confirmed in the key findings where it states 'Monthly recurring revenue reached $800K'. The proof sources from the web search do not directly relate to this specific case, but they do show examples of other businesses achieving similar levels of monthly recurring revenue, which indirectly supports the plausibility of the claim.",
+      "proof_sources": [
+        {
+          "title": "How Canny Bootstrapped to $800K ARR",
+          "url": "https://baremetrics.com/blog/canny-bootstrapped-800k-arr",
+          "snippet": "In the last month, we hit $800K in annual recurring revenue. A lot of how our company runs today is due to the fact that we never raised money.",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "To small business owners who are making $400k per ...",
+          "url": "https://www.reddit.com/r/smallbusiness/comments/1kp0g6d/to_small_business_owners_who_are_making_400k_per/",
+          "snippet": "The work is done at night when nobody is around, and verifying the work that was done properly isn't common. They just walk in and see a shiny ...",
+          "reliability_score": 0.5
+        },
+        {
+          "title": "Can AI Build Your App? 2025 Reality Check",
+          "url": "https://www.ptolemay.com/post/can-ai-build-your-app-the-no-bs-guide-for-founders",
+          "snippet": "Take Comet, a freelance marketplace that reached nearly $800K in monthly recurring revenue, built entirely on Bubble by founders who didn't write a single line ...",
+          "reliability_score": 0.5
+        }
+      ],
+      "replacement_suggestion": {
+        "suggested_replacement": "",
+        "explanation": "",
+        "proof_sources": []
+      },
+      "recommendations": [
+        "No recommendations for improvement as the claim is valid and matches the provided data."
+      ]
+    }
+  ]
+}
