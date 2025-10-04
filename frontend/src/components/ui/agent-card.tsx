@@ -114,10 +114,10 @@ export const AgentCard = ({
       cardState === "active" ? "bg-black/60" : "bg-black/80";
    const overlayVeilClass =
       cardState === "active"
-         ? "bg-black/40"
+         ? "bg-black/50"
          : cardState === "completed"
-         ? "bg-black/80"
-         : "bg-black/90";
+         ? "bg-black/40"
+         : "bg-black/50";
    const borderToneClass =
       cardState === "active" ? "border-white/20" : "border-white/10";
    const normalizedSteps = Math.max(totalSteps, 1);
@@ -175,7 +175,7 @@ export const AgentCard = ({
                      />
                   </div>
                   <div
-                     className="absolute inset-0 opacity-65"
+                     className="absolute inset-0 opacity-20"
                      style={{
                         background:
                            "radial-gradient(120% 120% at 80% 0%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.85) 55%)",
@@ -223,7 +223,7 @@ export const AgentCard = ({
                         {hasSteps && (
                            <div className="relative grid min-h-[200px] gap-2">
                               {hasPreviousSteps && (
-                                 <div className="pointer-events-none absolute -top-2 left-0 right-0 h-6 bg-gradient-to-b from-black/70 via-black/30 to-transparent" />
+                                 <div className="pointer-events-none absolute -top-2 left-0 right-0 h-6 " />
                               )}
                               {visibleSteps.map((loadingState, index) => {
                                  const stepIndex = startIndex + index;
@@ -239,7 +239,7 @@ export const AgentCard = ({
                                     <div
                                        key={`${loadingState.text}-${stepIndex}`}
                                        className={cn(
-                                          "flex items-center gap-3 rounded-lg border border-white/10 px-3 py-2 backdrop-blur-sm transition",
+                                          "flex items-center gap-3 rounded-lg border border-white/10 px-3 py-2transition",
                                           isComplete &&
                                              "border-white/30 bg-white/10",
                                           isCurrent &&
@@ -264,7 +264,7 @@ export const AgentCard = ({
                                              : undefined
                                        }
                                     >
-                                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-black/40">
+                                       <div className="flex h-6 w-6 items-center justify-center rounded-full">
                                           {isComplete || isCurrent ? (
                                              <svg
                                                 xmlns="http://www.w3.org/2000/svg"
