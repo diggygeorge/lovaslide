@@ -262,7 +262,7 @@ export const AgentCard = ({
                                              : undefined
                                        }
                                     >
-                                       <div className="flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-black/40">
+                                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-black/40">
                                           {isComplete || isCurrent ? (
                                              <svg
                                                 xmlns="http://www.w3.org/2000/svg"

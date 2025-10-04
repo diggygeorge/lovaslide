@@ -40,7 +40,7 @@ const SLIDE_HEIGHT = 720;
 
 type DeckMeta = {
    title: string;
-   theme: "dark" | "light";
+   theme: "dark" | "light" | "blue" | "green" | "purple" | "corporate";
 };
 
 type SlideMedia = {
@@ -50,11 +50,28 @@ type SlideMedia = {
 };
 
 type DeckSlide = {
-   layout: "title" | "title-bullets" | "two-col" | "image-left" | "roadmap";
+   layout:
+      | "title"
+      | "title-bullets"
+      | "two-col"
+      | "image-left"
+      | "image-right"
+      | "roadmap"
+      | "quote"
+      | "comparison"
+      | "stats"
+      | "three-col";
    title: string;
    bullets?: string[];
    notes?: string;
    media?: SlideMedia[];
+   quote?: string;
+   author?: string;
+   stats?: Array<{ label: string; value: string; description?: string }>;
+   comparison?: {
+      left: { title: string; items: string[] };
+      right: { title: string; items: string[] };
+   };
 };
 
 type SlideWithStatus = DeckSlide & {
@@ -103,73 +120,215 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#1e293b",
       watermark: "rgba(15,23,42,0.06)",
    },
+   blue: {
+      background: "#0c1821",
+      gradient: ["rgba(59,130,246,0.25)", "rgba(99,102,241,0.20)"],
+      panel: "rgba(30,58,138,0.85)",
+      panelStroke: "rgba(96,165,250,0.30)",
+      accent: "#60a5fa",
+      accentSoft: "rgba(96,165,250,0.25)",
+      textPrimary: "#e0f2fe",
+      textSecondary: "rgba(186,230,253,0.90)",
+      metaText: "rgba(125,211,252,0.85)",
+      bullet: "#f0f9ff",
+      watermark: "rgba(30,58,138,0.75)",
+   },
+   green: {
+      background: "#0a1b0e",
+      gradient: ["rgba(34,197,94,0.22)", "rgba(16,185,129,0.18)"],
+      panel: "rgba(21,128,61,0.80)",
+      panelStroke: "rgba(74,222,128,0.25)",
+      accent: "#4ade80",
+      accentSoft: "rgba(74,222,128,0.20)",
+      textPrimary: "#dcfce7",
+      textSecondary: "rgba(187,247,208,0.88)",
+      metaText: "rgba(134,239,172,0.85)",
+      bullet: "#f0fdf4",
+      watermark: "rgba(21,128,61,0.70)",
+   },
+   purple: {
+      background: "#1a0f2e",
+      gradient: ["rgba(168,85,247,0.24)", "rgba(236,72,153,0.18)"],
+      panel: "rgba(88,28,135,0.82)",
+      panelStroke: "rgba(196,181,253,0.28)",
+      accent: "#c4b5fd",
+      accentSoft: "rgba(196,181,253,0.22)",
+      textPrimary: "#faf5ff",
+      textSecondary: "rgba(221,214,254,0.90)",
+      metaText: "rgba(196,181,253,0.85)",
+      bullet: "#faf5ff",
+      watermark: "rgba(88,28,135,0.75)",
+   },
+   corporate: {
+      background: "#f8fafc",
+      gradient: ["rgba(51,65,85,0.08)", "rgba(71,85,105,0.06)"],
+      panel: "rgba(248,250,252,0.95)",
+      panelStroke: "rgba(51,65,85,0.15)",
+      accent: "#334155",
+      accentSoft: "rgba(51,65,85,0.10)",
+      textPrimary: "#0f172a",
+      textSecondary: "rgba(51,65,85,0.85)",
+      metaText: "rgba(71,85,105,0.80)",
+      bullet: "#1e293b",
+      watermark: "rgba(51,65,85,0.04)",
+   },
 };
 
 const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
    meta: {
-      title: "Demo Deck",
-      theme: "dark",
+      title: "Enhanced Demo Deck",
+      theme: "green",
    },
    slides: [
       {
          layout: "title",
-         title: "Welcome to the Demo Deck",
+         title: "Welcome to the Enhanced Demo",
          notes: "Set the tone and highlight the big promise upfront.",
       },
       {
-         layout: "title-bullets",
-         title: "Agenda",
-         bullets: [
-            "Introduction",
-            "Problem Statement",
-            "Our Solution",
-            "Roadmap",
-            "Q&A",
-         ],
-         notes: "Keep it short and give the audience a runway.",
+         layout: "quote",
+         title: "Inspiration",
+         quote: "The best way to predict the future is to create it.",
+         author: "Peter Drucker",
+         notes: "Start with an inspiring quote to set the mood.",
       },
       {
-         layout: "two-col",
-         title: "Problem vs. Solution",
-         bullets: [
-            "Fragmented workflows",
-            "Manual data entry",
-            "Low engagement",
+         layout: "stats",
+         title: "Market Impact",
+         stats: [
+            {
+               label: "Users",
+               value: "10M+",
+               description: "Active monthly users",
+            },
+            {
+               label: "Growth",
+               value: "250%",
+               description: "Year-over-year increase",
+            },
+            {
+               label: "Satisfaction",
+               value: "98%",
+               description: "Customer satisfaction rate",
+            },
+            {
+               label: "Revenue",
+               value: "$50M",
+               description: "Annual recurring revenue",
+            },
          ],
-         notes: "These are the challenges.",
+         notes: "Use compelling statistics to build credibility.",
       },
       {
-         layout: "image-left",
-         title: "Our Solution",
+         layout: "comparison",
+         title: "Before vs After",
+         comparison: {
+            left: {
+               title: "Traditional Approach",
+               items: [
+                  "Manual processes",
+                  "Siloed teams",
+                  "Slow delivery",
+                  "High costs",
+               ],
+            },
+            right: {
+               title: "Our Solution",
+               items: [
+                  "Automated workflows",
+                  "Collaborative platform",
+                  "Fast deployment",
+                  "Cost effective",
+               ],
+            },
+         },
+         notes: "Clear comparison helps audience understand the value proposition.",
+      },
+      {
+         layout: "image-right",
+         title: "Product Demo",
          bullets: [
-            "Automated imports",
-            "Beautiful templates",
-            "One-click exports",
+            "Intuitive user interface",
+            "Real-time collaboration",
+            "Advanced analytics",
+            "Mobile responsive design",
          ],
          media: [
             {
                kind: "image",
                url: "https://placehold.co/800x600/png",
-               alt: "Placeholder",
+               alt: "Product Interface",
             },
          ],
-         notes: "Pair visuals with a concise value stack.",
+         notes: "Show the product in action with key benefits.",
+      },
+      {
+         layout: "three-col",
+         title: "Key Features",
+         bullets: [
+            "Feature 1: Advanced AI integration",
+            "Feature 2: Seamless integrations",
+            "Feature 3: Enterprise security",
+            "Feature 4: Custom branding",
+            "Feature 5: Analytics dashboard",
+            "Feature 6: Mobile apps",
+         ],
+         notes: "Break down features into digestible categories.",
+      },
+      {
+         layout: "title-bullets",
+         title: "Implementation Timeline",
+         bullets: [
+            "Week 1-2: Discovery & Planning",
+            "Week 3-4: Setup & Configuration",
+            "Week 5-6: Training & Testing",
+            "Week 7-8: Launch & Support",
+         ],
+         notes: "Give clear expectations about the implementation process.",
       },
       {
          layout: "roadmap",
-         title: "Roadmap",
+         title: "Future Roadmap",
          bullets: [
-            "Phase 1: Import & Preview",
-            "Phase 2: Export to PPTX/Slides/PDF",
-            "Phase 3: Custom Templates & Branding",
-            "Phase 4: Collaboration & Comments",
+            "Q1: Enhanced AI capabilities",
+            "Q2: Mobile app improvements",
+            "Q3: Advanced integrations",
+            "Q4: Enterprise features",
          ],
-         notes: "Call out the milestones and what success unlocks.",
+         notes: "Show the vision and commitment to continuous improvement.",
+      },
+      {
+         layout: "two-col",
+         title: "Success Stories",
+         bullets: [
+            "Company A: 300% productivity increase",
+            "Company B: $2M cost savings",
+            "Company C: 95% user adoption",
+         ],
+         notes: "Social proof through customer success stories.",
+      },
+      {
+         layout: "quote",
+         title: "Customer Testimonial",
+         quote: "This platform transformed how our team collaborates and delivers results.",
+         author: "Sarah Johnson, CTO at TechCorp",
+         notes: "End with a powerful customer testimonial.",
       },
    ],
 };
 
-const slideStatuses = ["Ready", "In review", "Needs polish", "Draft", "Ready"];
+const slideStatuses = [
+   "Ready",
+   "In review",
+   "Needs polish",
+   "Draft",
+   "Ready",
+   "Ready",
+   "In review",
+   "Draft",
+   "Ready",
+   "Ready",
+];
 
 const defaultRecentNotes = [
    {
@@ -385,68 +544,6 @@ function drawAccentShapes(
       42,
       theme.watermark
    );
-   ctx.restore();
-}
-
-function drawWatermark(
-   ctx: CanvasRenderingContext2D,
-   meta: DeckMeta,
-   theme: ThemeConfig,
-   width: number,
-   height: number
-) {
-   ctx.save();
-   ctx.textBaseline = "alphabetic";
-   ctx.textAlign = "right";
-   ctx.globalAlpha = 0.06;
-   ctx.fillStyle = theme.textPrimary;
-   ctx.font = `800 120px ${BASE_FONT_STACK}`;
-   ctx.fillText(meta.title.toUpperCase(), width - 56, height - 40);
-   ctx.restore();
-}
-
-function drawNotesPanel(
-   ctx: CanvasRenderingContext2D,
-   slide: DeckSlide,
-   theme: ThemeConfig,
-   width: number,
-   height: number
-) {
-   if (!slide.notes) return;
-
-   const panelWidth = width - 120;
-   const panelHeight = 120;
-   const panelX = 60;
-   const panelY = height - panelHeight - 54;
-
-   drawRoundedRect(
-      ctx,
-      panelX,
-      panelY,
-      panelWidth,
-      panelHeight,
-      22,
-      theme.panel,
-      theme.panelStroke,
-      1.2
-   );
-
-   ctx.save();
-   ctx.textBaseline = "top";
-   ctx.textAlign = "left";
-   ctx.fillStyle = theme.metaText;
-   ctx.font = `600 16px ${BASE_FONT_STACK}`;
-   ctx.fillText("Speaker notes", panelX + 28, panelY + 24);
-
-   ctx.font = `400 16px ${BASE_FONT_STACK}`;
-   ctx.fillStyle = theme.textSecondary;
-   const noteWidth = panelWidth - 56;
-   let textY = panelY + 56;
-   const lines = wrapLines(ctx, slide.notes, noteWidth);
-   lines.forEach((line) => {
-      ctx.fillText(line, panelX + 28, textY);
-      textY += 24;
-   });
    ctx.restore();
 }
 
@@ -825,6 +922,334 @@ async function drawRoadmapSlide(
    ctx.restore();
 }
 
+async function drawQuoteSlide(
+   ctx: CanvasRenderingContext2D,
+   slide: SlideWithStatus,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+   ctx.textAlign = "center";
+   ctx.textBaseline = "top";
+   const paddingX = 96;
+   const top = 180;
+
+   // Quote text
+   ctx.font = `italic 48px ${BASE_FONT_STACK}`;
+   ctx.fillStyle = theme.textPrimary;
+   const quoteText = slide.quote || "Your quote here";
+   const quoteLines = wrapLines(ctx, quoteText, width - paddingX * 2);
+   let cursorY = top;
+   quoteLines.forEach((line) => {
+      ctx.fillText(line, width / 2, cursorY);
+      cursorY += 56;
+   });
+
+   // Quote marks
+   ctx.font = `bold 120px ${BASE_FONT_STACK}`;
+   ctx.fillStyle = theme.accent;
+   ctx.globalAlpha = 0.3;
+   ctx.fillText("\u201C", paddingX, top - 20);
+   ctx.fillText("\u201D", width - paddingX - 60, cursorY - 40);
+
+   ctx.globalAlpha = 1;
+
+   // Author
+   if (slide.author) {
+      cursorY += 40;
+      ctx.font = `600 24px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.accent;
+      ctx.fillText("— " + slide.author, width / 2, cursorY);
+   }
+
+   ctx.restore();
+}
+
+async function drawStatsSlide(
+   ctx: CanvasRenderingContext2D,
+   slide: SlideWithStatus,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+   ctx.textAlign = "center";
+   ctx.textBaseline = "top";
+   const paddingX = 80;
+   const top = 160;
+
+   const stats = slide.stats || [];
+   const cols = 2;
+   const rows = Math.ceil(stats.length / cols);
+   const cardWidth = (width - paddingX * 2 - 40) / cols;
+   const cardHeight = 160;
+
+   stats.forEach((stat, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      const x = paddingX + col * (cardWidth + 40);
+      const y = top + row * (cardHeight + 30);
+
+      // Card background
+      drawRoundedRect(
+         ctx,
+         x,
+         y,
+         cardWidth,
+         cardHeight,
+         20,
+         theme.panel,
+         theme.panelStroke,
+         1
+      );
+
+      // Value
+      ctx.font = `bold 48px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.accent;
+      ctx.fillText(stat.value, x + cardWidth / 2, y + 30);
+
+      // Label
+      ctx.font = `600 18px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.textPrimary;
+      ctx.fillText(stat.label, x + cardWidth / 2, y + 90);
+
+      // Description
+      if (stat.description) {
+         ctx.font = `400 14px ${BASE_FONT_STACK}`;
+         ctx.fillStyle = theme.metaText;
+         const descLines = wrapLines(ctx, stat.description, cardWidth - 32);
+         let descY = y + 115;
+         descLines.forEach((line) => {
+            ctx.fillText(line, x + cardWidth / 2, descY);
+            descY += 18;
+         });
+      }
+   });
+
+   ctx.restore();
+}
+
+async function drawComparisonSlide(
+   ctx: CanvasRenderingContext2D,
+   slide: SlideWithStatus,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+   ctx.textAlign = "left";
+   ctx.textBaseline = "top";
+   const paddingX = 80;
+   const top = 140;
+   const contentWidth = width - paddingX * 2;
+   const columnWidth = (contentWidth - 60) / 2;
+
+   const comparison = slide.comparison;
+   if (!comparison) return;
+
+   // Left column
+   ctx.font = `700 32px ${BASE_FONT_STACK}`;
+   ctx.fillStyle = theme.textPrimary;
+   ctx.fillText(comparison.left.title, paddingX, top);
+
+   ctx.font = `500 24px ${BASE_FONT_STACK}`;
+   let cursorY = top + 50;
+   comparison.left.items.forEach((item) => {
+      ctx.save();
+      ctx.fillStyle = "#ef4444"; // Red for "before"
+      ctx.beginPath();
+      ctx.arc(paddingX + 12, cursorY + 12, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = theme.textSecondary;
+      ctx.fillText(item, paddingX + 30, cursorY);
+      cursorY += 36;
+   });
+
+   // Right column
+   const rightX = paddingX + columnWidth + 60;
+   ctx.font = `700 32px ${BASE_FONT_STACK}`;
+   ctx.fillStyle = theme.textPrimary;
+   ctx.fillText(comparison.right.title, rightX, top);
+
+   ctx.font = `500 24px ${BASE_FONT_STACK}`;
+   cursorY = top + 50;
+   comparison.right.items.forEach((item) => {
+      ctx.save();
+      ctx.fillStyle = theme.accent; // Theme color for "after"
+      ctx.beginPath();
+      ctx.arc(rightX + 12, cursorY + 12, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = theme.textSecondary;
+      ctx.fillText(item, rightX + 30, cursorY);
+      cursorY += 36;
+   });
+
+   ctx.restore();
+}
+
+async function drawImageRightSlide(
+   ctx: CanvasRenderingContext2D,
+   slide: SlideWithStatus,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+   ctx.textBaseline = "top";
+   ctx.textAlign = "left";
+   const paddingX = 72;
+   const top = 120;
+
+   const imageWidth = width * 0.36;
+   const imageHeight = height * 0.56;
+   const imageX = width - paddingX - imageWidth;
+   const imageY = top + 20;
+
+   const mediaItem = slide.media?.find((m) => m.kind === "image");
+   const image = await loadSlideImage(mediaItem?.url);
+
+   drawRoundedRect(
+      ctx,
+      imageX - 12,
+      imageY - 12,
+      imageWidth + 24,
+      imageHeight + 24,
+      34,
+      theme.panel,
+      theme.panelStroke,
+      1
+   );
+
+   if (image) {
+      ctx.save();
+      const radius = 28;
+      ctx.beginPath();
+      ctx.moveTo(imageX + radius, imageY);
+      ctx.lineTo(imageX + imageWidth - radius, imageY);
+      ctx.quadraticCurveTo(
+         imageX + imageWidth,
+         imageY,
+         imageX + imageWidth,
+         imageY + radius
+      );
+      ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
+      ctx.quadraticCurveTo(
+         imageX + imageWidth,
+         imageY + imageHeight,
+         imageX + imageWidth - radius,
+         imageY + imageHeight
+      );
+      ctx.lineTo(imageX + radius, imageY + imageHeight);
+      ctx.quadraticCurveTo(
+         imageX,
+         imageY + imageHeight,
+         imageX,
+         imageY + imageHeight - radius
+      );
+      ctx.lineTo(imageX, imageY + radius);
+      ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+      ctx.restore();
+   } else {
+      ctx.save();
+      ctx.fillStyle = theme.accentSoft;
+      ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
+      ctx.fillStyle = theme.textSecondary;
+      ctx.font = `500 18px ${BASE_FONT_STACK}`;
+      ctx.textAlign = "center";
+      ctx.fillText(
+         mediaItem?.alt ?? "Image unavailable",
+         imageX + imageWidth / 2,
+         imageY + imageHeight / 2 - 12
+      );
+      ctx.restore();
+   }
+
+   const contentX = paddingX;
+   const contentWidth = width - imageX - 72;
+
+   ctx.fillStyle = theme.textPrimary;
+   ctx.font = `700 52px ${BASE_FONT_STACK}`;
+   const titleLines = wrapLines(ctx, slide.title, contentWidth);
+   let cursorY = top;
+   titleLines.forEach((line) => {
+      ctx.fillText(line, contentX, cursorY);
+      cursorY += 52 * 1.12;
+   });
+
+   cursorY += 20;
+   ctx.font = `500 28px ${BASE_FONT_STACK}`;
+   drawBulletedList(
+      ctx,
+      slide.bullets,
+      contentX,
+      cursorY,
+      contentWidth,
+      36,
+      theme
+   );
+
+   ctx.restore();
+}
+
+async function drawThreeColumnSlide(
+   ctx: CanvasRenderingContext2D,
+   slide: SlideWithStatus,
+   theme: ThemeConfig,
+   width: number,
+   height: number
+) {
+   ctx.save();
+   ctx.textAlign = "left";
+   ctx.textBaseline = "top";
+   const paddingX = 72;
+   const top = 140;
+   const contentWidth = width - paddingX * 2;
+   const columnWidth = (contentWidth - 40) / 3;
+
+   ctx.font = `700 44px ${BASE_FONT_STACK}`;
+   ctx.fillStyle = theme.textPrimary;
+   const titleLines = wrapLines(ctx, slide.title, contentWidth);
+   let cursorY = top;
+   titleLines.forEach((line) => {
+      ctx.fillText(line, paddingX, cursorY);
+      cursorY += 44 * 1.1;
+   });
+
+   cursorY += 30;
+
+   const bullets = slide.bullets || [];
+   const bulletsPerColumn = Math.ceil(bullets.length / 3);
+
+   for (let col = 0; col < 3; col++) {
+      const colX = paddingX + col * (columnWidth + 20);
+      const columnBullets = bullets.slice(
+         col * bulletsPerColumn,
+         (col + 1) * bulletsPerColumn
+      );
+
+      ctx.font = `500 22px ${BASE_FONT_STACK}`;
+      drawBulletedList(
+         ctx,
+         columnBullets,
+         colX,
+         cursorY,
+         columnWidth,
+         32,
+         theme
+      );
+   }
+
+   ctx.restore();
+}
+
 async function drawSlide(
    ctx: CanvasRenderingContext2D,
    slide: SlideWithStatus,
@@ -860,16 +1285,29 @@ async function drawSlide(
       case "image-left":
          await drawImageLeftSlide(ctx, slide, theme, width, height);
          break;
+      case "image-right":
+         await drawImageRightSlide(ctx, slide, theme, width, height);
+         break;
       case "roadmap":
          await drawRoadmapSlide(ctx, slide, theme, width, height);
+         break;
+      case "quote":
+         await drawQuoteSlide(ctx, slide, theme, width, height);
+         break;
+      case "stats":
+         await drawStatsSlide(ctx, slide, theme, width, height);
+         break;
+      case "comparison":
+         await drawComparisonSlide(ctx, slide, theme, width, height);
+         break;
+      case "three-col":
+         await drawThreeColumnSlide(ctx, slide, theme, width, height);
          break;
       default:
          await drawTitleWithBullets(ctx, slide, theme, width, height);
          break;
    }
 
-   drawNotesPanel(ctx, slide, theme, width, height);
-   drawWatermark(ctx, meta, theme, width, height);
    ctx.restore();
 }
 
@@ -1656,6 +2094,9 @@ export default function SlidesWorkspacePage() {
    const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(
       null
    );
+   const [currentTheme, setCurrentTheme] = useState<DeckMeta["theme"]>(
+      demoDeck.meta.theme
+   );
 
    const deckSlides = useMemo<SlideWithStatus[]>(
       () =>
@@ -1671,6 +2112,9 @@ export default function SlidesWorkspacePage() {
    const activeSlide = deckSlides[activeSlideIndex];
    const isFirstSlide = activeSlideIndex === 0;
    const isLastSlide = activeSlideIndex === slidesCount - 1;
+
+   // Create a meta object with the current theme
+   const currentMeta = { ...demoDeck.meta, theme: currentTheme };
 
    const handleSubmitNote = () => {
       if (!noteText.trim()) return;
@@ -1705,24 +2149,56 @@ export default function SlidesWorkspacePage() {
       setActiveSlideIndex(index);
    };
 
+   useEffect(() => {
+      const onKeyDown = (e: KeyboardEvent) => {
+         if (e.defaultPrevented) return;
+         const target = e.target as HTMLElement | null;
+         if (target) {
+            const tag = target.tagName.toLowerCase();
+            if (
+               tag === "input" ||
+               tag === "textarea" ||
+               tag === "select" ||
+               target.isContentEditable
+            ) {
+               return;
+            }
+         }
+
+         if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            handlePrevSlide();
+         } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            handleNextSlide();
+         } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setIsDockOpen(true);
+         } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setIsDockOpen(false);
+         }
+      };
+
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
+   }, [handlePrevSlide, handleNextSlide]);
+
    const handleExport = async (format: ExportFormat) => {
       if (exportingFormat) return;
       setExportingFormat(format);
       try {
          if (format === "pptx" || format === "google") {
-            const blob = await buildPptx(deckSlides, demoDeck.meta);
+            const blob = await buildPptx(deckSlides, currentMeta);
             const suffix =
                format === "google" ? " - Google Slides.pptx" : ".pptx";
             downloadBlob(
                blob,
-               `${sanitizeFileName(demoDeck.meta.title)}${suffix}`
+               `${sanitizeFileName(currentMeta.title)}${suffix}`
             );
          } else if (format === "pdf") {
-            const pdfBlob = await buildPdf(deckSlides, demoDeck.meta);
-            downloadBlob(
-               pdfBlob,
-               `${sanitizeFileName(demoDeck.meta.title)}.pdf`
-            );
+            const pdfBlob = await buildPdf(deckSlides, currentMeta);
+            downloadBlob(pdfBlob, `${sanitizeFileName(currentMeta.title)}.pdf`);
          }
       } catch (error) {
          console.error("Export failed", error);
@@ -1738,8 +2214,8 @@ export default function SlidesWorkspacePage() {
 
    return (
       <div className="flex min-h-screen flex-col bg-background">
-         <header className="border-b border-border/60 bg-background/95 backdrop-blur">
-            <div className="container mx-auto flex items-center justify-between gap-4 px-6 py-4">
+         <header className="flex items-center justify-between border-b border-border/60 bg-background/95 backdrop-blur w-full">
+            <div className="flex items-center justify-between gap-4 px-6 py-4 w-full">
                <div className="flex items-center gap-4">
                   <LayoutDashboard className="h-8 w-8" />
                   <div>
@@ -1747,12 +2223,52 @@ export default function SlidesWorkspacePage() {
                         Lovaslide Presentation Workspace
                      </h1>
                      <p className="text-sm text-muted-foreground">
-                        {demoDeck.meta.title} · {slidesCount} slides · Theme:{" "}
-                        {demoDeck.meta.theme}
+                        {currentMeta.title} · {slidesCount} slides · Theme:{" "}
+                        {currentTheme}
                      </p>
                   </div>
                </div>
                <div className="flex items-center gap-3">
+                  <DropdownMenu>
+                     <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                           Theme: {currentTheme}
+                           <ChevronDown className="h-4 w-4" />
+                        </Button>
+                     </DropdownMenuTrigger>
+                     <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("light")}
+                        >
+                           Light
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("dark")}
+                        >
+                           Dark
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("blue")}
+                        >
+                           Blue
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("green")}
+                        >
+                           Green
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("purple")}
+                        >
+                           Purple
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                           onSelect={() => setCurrentTheme("corporate")}
+                        >
+                           Corporate
+                        </DropdownMenuItem>
+                     </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button variant="outline" size="sm" className="gap-2">
                      <Play className="h-4 w-4" />
                      Present
@@ -1832,7 +2348,7 @@ export default function SlidesWorkspacePage() {
                            <div className="relative h-full w-full">
                               <SlidePreview
                                  slide={activeSlide}
-                                 meta={demoDeck.meta}
+                                 meta={currentMeta}
                               />
                            </div>
                            <div className="pointer-events-none absolute bottom-4 left-6 right-6">
@@ -1877,7 +2393,38 @@ export default function SlidesWorkspacePage() {
                                           >
                                              <ChevronLeft className="h-4 w-4" />
                                           </Button>
-                                          <div className="flex gap-2 overflow-x-auto pb-1 pr-1 flex-1 justify-center">
+                                          <div
+                                             ref={(el) => {
+                                                if (el) {
+                                                   // Auto-scroll to active slide
+                                                   const activeButton = el
+                                                      .children[
+                                                      activeSlideIndex
+                                                   ] as HTMLElement;
+                                                   if (activeButton) {
+                                                      // For first and last slides, use 'nearest' to avoid cutoff
+                                                      // For middle slides, use 'center' for better visibility
+                                                      const scrollBehavior =
+                                                         activeSlideIndex ===
+                                                            0 ||
+                                                         activeSlideIndex ===
+                                                            slidesCount - 1
+                                                            ? "nearest"
+                                                            : "center";
+
+                                                      activeButton.scrollIntoView(
+                                                         {
+                                                            behavior: "smooth",
+                                                            block: "nearest",
+                                                            inline:
+                                                               scrollBehavior,
+                                                         }
+                                                      );
+                                                   }
+                                                }
+                                             }}
+                                             className="flex gap-2 overflow-x-auto pb-1 px-4 flex-1 justify-start"
+                                          >
                                              {deckSlides.map((slide, index) => (
                                                 <button
                                                    key={slide.id}
