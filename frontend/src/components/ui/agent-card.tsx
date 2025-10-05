@@ -49,7 +49,7 @@ export const AgentCard = ({
                   onComplete?.();
                }, 300);
             }
-         }, 600);
+         }, newStepDuration);
       }
    }, [isActive, isCompleted, loadingStates.length, onComplete, agentName]);
 
@@ -114,7 +114,7 @@ export const AgentCard = ({
       cardState === "active" ? "bg-black/60" : "bg-black/80";
    const overlayVeilClass =
       cardState === "active"
-         ? "bg-black/50"
+         ? "bg-black/60"
          : cardState === "completed"
          ? "bg-black/40"
          : "bg-black/50";
@@ -124,11 +124,21 @@ export const AgentCard = ({
    const baseStepTarget = 4;
    const stepDuration = 600; // ms per step
    const totalDuration = normalizedSteps * stepDuration; // total ms for this agent
-   const baseDuration = 3000; // base duration for 4 steps
-   const speedMultiplier = baseDuration / totalDuration;
-   const relativeSpeed = speedMultiplier * 0.8; // Base speed multiplier
+
+   const systemTotalDuration = 13800; // 13.8s in ms
+   const additionalTime = 10000; // 10s in ms
+   const proportionalIncrease =
+      (totalDuration / systemTotalDuration) * additionalTime;
+   const baseDuration = totalDuration + proportionalIncrease;
+
+   const newStepDuration = baseDuration / normalizedSteps;
+   const originalStepDuration = 600;
+   const canvasSpeedMultiplier = originalStepDuration / newStepDuration;
+   const baseCanvasSpeed = 0.4; // Default canvas speed
    const revealSpeed =
-      cardState === "active" ? Math.min(Math.max(relativeSpeed, 0.3), 1.2) : 0;
+      cardState === "active"
+         ? Math.min(Math.max(baseCanvasSpeed * canvasSpeedMultiplier, 0.2), 1.0)
+         : 0;
 
    return (
       <div

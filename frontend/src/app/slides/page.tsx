@@ -911,8 +911,22 @@ async function loadSlideImage(url?: string): Promise<HTMLImageElement | null> {
          ? url
          : `${url}${url.includes("?") ? "&" : "?"}ts=${Date.now()}`;
       img.src = src;
-      img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);
+
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+         console.warn(`Image loading timeout for: ${url}`);
+         resolve(null);
+      }, 3000); // 3 second timeout
+
+      img.onload = () => {
+         clearTimeout(timeout);
+         resolve(img);
+      };
+      img.onerror = () => {
+         clearTimeout(timeout);
+         console.warn(`Failed to load image: ${url}`);
+         resolve(null);
+      };
    }).then((result) => {
       if (!isDataUrl) {
          imageCache.set(url, result);
@@ -1025,7 +1039,6 @@ function drawMetaHeader(
 
    ctx.font = `500 13px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textSecondary;
-   ctx.fillText(slide.layout.replace(/-/g, " ").toUpperCase(), 56, 68);
 
    const badgeWidth = 172;
    drawRoundedRect(
@@ -1521,6 +1534,93 @@ async function drawTwoColumnSlide(
    ctx.fillStyle = theme.textPrimary;
    const titleLines = wrapLines(ctx, slide.title, contentWidth);
    const titleHeight = titleLines.length * 54 * 1.1;
+
+   // Render title directly without animation
+   let cursorY = top;
+   titleLines.forEach((line) => {
+      ctx.fillText(line, paddingX, cursorY);
+      cursorY += 54 * 1.1;
+   });
+
+   cursorY = top + titleHeight + 18;
+
+   // Check if this is a comparison slide
+   if (slide.comparison) {
+      const columnGap = 60;
+      const columnWidth = (contentWidth - columnGap) / 2;
+
+      // Left column
+      ctx.font = `700 32px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.textPrimary;
+      ctx.fillText(slide.comparison.left.title, paddingX, cursorY);
+
+      ctx.font = `500 24px ${BASE_FONT_STACK}`;
+      let leftCursorY = cursorY + 50;
+      slide.comparison.left.items.forEach((item, index) => {
+         ctx.save();
+         ctx.fillStyle = "#ef4444";
+         ctx.beginPath();
+         ctx.arc(paddingX + 12, leftCursorY + 12, 4, 0, Math.PI * 2);
+         ctx.fill();
+         ctx.restore();
+
+         ctx.fillStyle = theme.textSecondary;
+         ctx.fillText(item, paddingX + 30, leftCursorY);
+         leftCursorY += 36;
+      });
+
+      // Right column
+      const rightX = paddingX + columnWidth + columnGap;
+      ctx.font = `700 32px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.textPrimary;
+      ctx.fillText(slide.comparison.right.title, rightX, cursorY);
+
+      ctx.font = `500 24px ${BASE_FONT_STACK}`;
+      let rightCursorY = cursorY + 50;
+      slide.comparison.right.items.forEach((item, index) => {
+         ctx.save();
+         ctx.fillStyle = theme.accent;
+         ctx.beginPath();
+         ctx.arc(rightX + 12, rightCursorY + 12, 4, 0, Math.PI * 2);
+         ctx.fill();
+         ctx.restore();
+
+         ctx.fillStyle = theme.textSecondary;
+         ctx.fillText(item, rightX + 30, rightCursorY);
+         rightCursorY += 36;
+      });
+
+      // Add notes at the bottom if provided
+      if (slide.notes) {
+         const noteY = Math.max(leftCursorY, rightCursorY) + 40;
+         ctx.font = `400 18px ${BASE_FONT_STACK}`;
+         ctx.fillStyle = theme.textSecondary;
+         const noteLines = wrapLines(ctx, slide.notes, contentWidth);
+         let noteTextY = noteY;
+         noteLines.forEach((line) => {
+            ctx.fillText(line, paddingX, noteTextY);
+            noteTextY += 26;
+         });
+      }
+   } else {
+      // Original two-column layout with bullets and highlights
+      const columnGap = 48;
+      const columnWidth = (contentWidth - columnGap) * 0.55;
+      ctx.font = `500 28px ${BASE_FONT_STACK}`;
+      drawBulletedList(
+         ctx,
+         slide.bullets,
+         paddingX,
+         cursorY,
+         columnWidth,
+         34,
+         theme,
+         {
+            animation: undefined, // Remove animations for bullets
+            animationProgress: undefined,
+            totalBulletCount: slide.bullets?.length ?? 0,
+         }
+      );
    const titleAnimation = slide.animations?.title;
    const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
 
@@ -1558,36 +1658,60 @@ async function drawTwoColumnSlide(
       }
    );
 
-   const notePanelX = paddingX + columnWidth + columnGap;
-   const notePanelWidth = contentWidth - columnWidth - columnGap;
-   const notePanelHeight = height * 0.42;
+      const notePanelX = paddingX + columnWidth + columnGap;
+      const notePanelWidth = contentWidth - columnWidth - columnGap;
+      const notePanelHeight = height * 0.42;
 
-   drawRoundedRect(
-      ctx,
-      notePanelX,
-      cursorY - 12,
-      notePanelWidth,
-      notePanelHeight,
-      26,
-      theme.panel,
-      theme.panelStroke,
-      1
-   );
+      drawRoundedRect(
+         ctx,
+         notePanelX,
+         cursorY - 12,
+         notePanelWidth,
+         notePanelHeight,
+         26,
+         theme.panel,
+         theme.panelStroke,
+         1
+      );
 
+      ctx.font = `600 20px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.textPrimary;
+      ctx.fillText("Highlights", notePanelX + 28, cursorY + 12);
    ctx.font = `600 20px ${BASE_FONT_STACK}`;
    ctx.fillStyle = theme.textPrimary;
    ctx.fillText("HighLights", notePanelX + 28, cursorY + 12);
 
-   ctx.font = `400 18px ${BASE_FONT_STACK}`;
-   ctx.fillStyle = theme.textSecondary;
-   const summary =
-      slide.notes ?? "Summarize the impact of solving these pain points.";
-   const lines = wrapLines(ctx, summary, notePanelWidth - 56);
-   let textY = cursorY + 48;
-   lines.forEach((line) => {
-      ctx.fillText(line, notePanelX + 28, textY);
-      textY += 26;
-   });
+      ctx.font = `400 18px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.textSecondary;
+
+      // Generate better highlights content based on slide content
+      let highlightsContent = "";
+      if (slide.notes && slide.notes.length > 50) {
+         // If notes are detailed, use them
+         highlightsContent = slide.notes;
+      } else if (slide.bullets && slide.bullets.length > 0) {
+         // Generate highlights from bullet points
+         const bulletCount = slide.bullets.length;
+         highlightsContent = `Key takeaways from this ${
+            bulletCount > 3 ? "comprehensive" : "focused"
+         } overview:\n\n• ${slide.bullets.slice(0, 3).join("\n• ")}`;
+         if (bulletCount > 3) {
+            highlightsContent += `\n• And ${
+               bulletCount - 3
+            } more important points...`;
+         }
+      } else {
+         highlightsContent =
+            "Summarize the impact of solving these pain points.";
+      }
+
+      const lines = wrapLines(ctx, highlightsContent, notePanelWidth - 56);
+      let textY = cursorY + 48;
+      lines.forEach((line) => {
+         ctx.fillText(line, notePanelX + 28, textY);
+         textY += 26;
+      });
+   }
 
    ctx.restore();
 }
@@ -1953,17 +2077,38 @@ async function drawStatsSlide(
    const top = 160;
 
    const stats = slide.stats || [];
+
+   // Debug: Log stats data to help identify issues
+   if (stats.length === 0) {
+      console.warn(
+         "No stats data found for slide:",
+         slide.title,
+         "Slide data:",
+         slide
+      );
+   }
    const cols = 2;
    const cardWidth = (width - paddingX * 2 - 40) / cols;
    const cardHeight = 160;
-   const bulletAnimation = slide.animations?.bullets;
-   const baseProgress = animationProgress?.bullets ?? 1;
-
+   // Remove animations for stats to ensure they always display
    stats.forEach((stat, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
       const x = paddingX + col * (cardWidth + 40);
       const y = top + row * (cardHeight + 30);
+
+      // Render stats directly without any animation
+      drawRoundedRect(
+         ctx,
+         x,
+         y,
+         cardWidth,
+         cardHeight,
+         20,
+         theme.panel,
+         theme.panelStroke,
+         1
+      );
       const progressKey = `bullet-${index}`;
       const progress =
          animationProgress?.[progressKey] ??
@@ -1990,11 +2135,27 @@ async function drawStatsSlide(
       ctx.font = `bold 48px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.accent;
       ctx.fillText(stat.value, x + cardWidth / 2, y + 30);
+      ctx.font = `bold 48px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.accent;
+      ctx.fillText(stat.value, x + cardWidth / 2, y + 30);
 
       ctx.font = `600 18px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.textPrimary;
       ctx.fillText(stat.label, x + cardWidth / 2, y + 90);
+      ctx.font = `600 18px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.textPrimary;
+      ctx.fillText(stat.label, x + cardWidth / 2, y + 90);
 
+      if (stat.description) {
+         ctx.font = `400 14px ${BASE_FONT_STACK}`;
+         ctx.fillStyle = theme.metaText;
+         const descLines = wrapLines(ctx, stat.description, cardWidth - 32);
+         let descY = y + 115;
+         descLines.forEach((line) => {
+            ctx.fillText(line, x + cardWidth / 2, descY);
+            descY += 18;
+         });
+      }
       if (stat.description) {
          ctx.font = `400 14px ${BASE_FONT_STACK}`;
          ctx.fillStyle = theme.metaText;
@@ -3343,7 +3504,7 @@ const SlidePreview = ({
    return (
       <div
          ref={containerRef}
-         className="h-full w-full flex items-center justify-center bg-black/5"
+         className="h-full w-full flex items-center justify-center bg-black/5 relative"
       >
          <canvas
             ref={canvasRef}
@@ -3631,6 +3792,10 @@ export default function SlidesWorkspacePage() {
             // Extract validation data if it exists
             if (parsedData.validation) {
                setValidationData(parsedData.validation);
+            }
+            // Extract and set theme from backend if it exists
+            if (parsedData.slides?.meta?.theme) {
+               setCurrentTheme(parsedData.slides.meta.theme);
             }
             sessionStorage.removeItem("slideData");
          } catch (error) {
@@ -4370,6 +4535,7 @@ export default function SlidesWorkspacePage() {
                                                          " "
                                                       )}
                                                    </p>
+                                                   <p className="w-[135px] overflow-hidden truncate text-sm font-semibold text-white">
                                                    <p className="w-[150px] overflow-hidden truncate text-sm font-semibold text-White">
                                                       {slide.title}
                                                    </p>
@@ -4579,13 +4745,6 @@ export default function SlidesWorkspacePage() {
                                        Send
                                     </>
                                  )}
-                              </Button>
-                              <Button
-                                 variant="outline"
-                                 size="icon"
-                                 className="h-8 w-8"
-                              >
-                                 <Sparkles className="h-4 w-4" />
                               </Button>
                            </div>
                         </div>
