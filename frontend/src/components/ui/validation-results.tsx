@@ -22,7 +22,7 @@ interface ProofSource {
 
 interface ValidationResult {
    claim: string;
-   status: "valid" | "invalid" | "uncertain" | "needs_review";
+   status: "valid" | "invalid" | "uncertain";
    confidence_score: number;
    explanation: string;
    proof_sources: ProofSource[];
@@ -51,7 +51,6 @@ const STATUS_LABELS: Record<ValidationResult["status"], string> = {
    valid: "Valid",
    invalid: "Invalid",
    uncertain: "Uncertain",
-   needs_review: "Needs Review",
 };
 
 const STATUS_BADGE_VARIANTS: Record<
@@ -61,7 +60,6 @@ const STATUS_BADGE_VARIANTS: Record<
    valid: "default",
    invalid: "destructive",
    uncertain: "secondary",
-   needs_review: "outline",
 };
 
 const ClaimHighlighter: React.FC<{
@@ -77,8 +75,6 @@ const ClaimHighlighter: React.FC<{
          case "invalid":
             return "border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20";
          case "uncertain":
-            return "border border-muted/60 bg-muted text-foreground hover:bg-muted/80";
-         default:
             return "border border-muted/60 bg-muted text-foreground hover:bg-muted/80";
       }
    };
@@ -100,13 +96,6 @@ const ClaimHighlighter: React.FC<{
                />
             );
          case "uncertain":
-            return (
-               <AlertCircle
-                  className="h-4 w-4 text-muted-foreground"
-                  aria-hidden="true"
-               />
-            );
-         default:
             return (
                <AlertCircle
                   className="h-4 w-4 text-muted-foreground"
@@ -371,9 +360,7 @@ export const ValidationResults: React.FC<ValidationResultsProps> = ({
                                           ? "bg-green-700 text-white"
                                           : result.status === "invalid"
                                           ? "bg-red-700 text-white"
-                                          : result.status === "uncertain"
-                                          ? "bg-yellow-700 text-white"
-                                          : "bg-gray-700 text-white"
+                                          : "bg-yellow-700 text-white"
                                     }`}
                                  >
                                     {STATUS_LABELS[result.status]}

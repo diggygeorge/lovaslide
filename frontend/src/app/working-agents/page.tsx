@@ -133,7 +133,7 @@ export default function WorkingAgentsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={handleGoBack}
-                        className="flex items-center space-x-2"
+                        className="flex items-center space-x-2 hover:cursor-pointer"
                      >
                         <ArrowLeft className="w-4 h-4" />
                         <span>Back</span>
@@ -231,22 +231,23 @@ export default function WorkingAgentsPage() {
                         </div>
                         <div className="relative mt-6 space-y-4">
                            <h3 className="text-3xl font-semibold tracking-tight text-foreground">
-                              Your presentation is ready
+                              Your presentation is ready!
                            </h3>
                            <p className="mx-auto max-w-xl text-base text-muted-foreground">
-                              Thansk to our AI agents, your presentation is
-                              finished!
+                              Thanks to our AI agents, your presentation is
+                              finished for preview!
                            </p>
                            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                              <Button size="lg" onClick={handleViewSlides}>
-                                 Open slides workspace
+                              <Button size="lg" className="hover:cursor-pointer" onClick={handleViewSlides}>
+                                 Preview
                               </Button>
                               <Button
                                  variant="ghost"
                                  size="lg"
+                                 className="hover:cursor-pointer"
                                  onClick={handleGoBack}
                               >
-                                 Start over another project
+                                 Start Over
                               </Button>
                            </div>
                         </div>

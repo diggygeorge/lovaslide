@@ -55,7 +55,8 @@ def extract_folder(folder_path):
             text = extract_docx(file)
         elif file.endswith(".md"):
             text = extract_markdown(file)
-            
+        else:
+            continue
         content[file] = text
 
     return content
@@ -63,7 +64,7 @@ def extract_folder(folder_path):
 # Test in content folders:
 if __name__ == "__main__":
     t0 = time.time()
-    folder = r"C:\Users\danny\Documents\GitHub\lovaslide\test_docs"
+    folder = r"C:\Users\danny\Documents\GitHub\lovaslide\backend\test_docs"
     files = extract_folder(folder)
     print(files)
     t1 = time.time()
