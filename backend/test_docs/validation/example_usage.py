@@ -108,10 +108,8 @@ def example_validation():
         
         for i, result in enumerate(report.results, 1):
             status_emoji = {
-                ValidationStatus.VALID: "✅",
                 ValidationStatus.INVALID: "❌",
-                ValidationStatus.UNCERTAIN: "❓",
-                ValidationStatus.NEEDS_REVIEW: "⚠️"
+                ValidationStatus.UNCERTAIN: "❓"
             }
             
             print(f"\n{i}. {status_emoji.get(result.status, '❓')} Claim: {result.claim}")
@@ -154,8 +152,7 @@ def example_validation():
         
         # Display summary statistics
         print(f"\nSummary Statistics:")
-        print(f"Total claims validated: {report.total_claims}")
-        print(f"Valid claims: {report.valid_claims} ({report.valid_claims/report.total_claims*100:.1f}%)")
+        print(f"Total claims analyzed: {report.total_claims}")
         print(f"Invalid claims: {report.invalid_claims} ({report.invalid_claims/report.total_claims*100:.1f}%)")
         print(f"Uncertain claims: {report.uncertain_claims} ({report.uncertain_claims/report.total_claims*100:.1f}%)")
         print(f"Overall confidence: {report.overall_confidence:.2f}")

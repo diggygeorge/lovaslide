@@ -24,10 +24,8 @@ load_dotenv()
 
 class ValidationStatus(Enum):
     """Validation status enumeration"""
-    VALID = "valid"
     INVALID = "invalid"
     UNCERTAIN = "uncertain"
-    NEEDS_REVIEW = "needs_review"
 
 @dataclass
 class ProofSource:
@@ -60,7 +58,6 @@ class ValidationResult:
 class ValidationReport:
     """Complete validation report for all claims"""
     total_claims: int
-    valid_claims: int
     invalid_claims: int
     uncertain_claims: int
     overall_confidence: float
@@ -604,10 +601,10 @@ class ValidationAgent:
         
         Please provide a comprehensive validation in the following JSON format:
         {{
-            "status": "valid|invalid|uncertain|needs_review",
+            "status": "invalid|uncertain",
             "confidence_score": 0.0-1.0,
             "explanation": "Detailed explanation of your validation reasoning",
-            "proof_sources_used": ["List of proof source numbers that support this claim - ALWAYS include sources for valid claims"],
+            "proof_sources_used": ["List of proof source numbers that support this claim"],
             "replacement_suggestion": {{
                 "suggested_replacement": "If invalid, provide a corrected version of the claim",
                 "explanation": "Why this replacement is more accurate",
@@ -617,9 +614,10 @@ class ValidationAgent:
         }}
         
         IMPORTANT INSTRUCTIONS:
-        1. For VALID claims: ALWAYS include proof sources that support the claim
-        2. For INVALID claims: Provide replacement suggestion with supporting sources
-        3. For UNCERTAIN claims: Explain why you cannot validate and suggest manual review
+        1. Use "invalid" only if the claim is factually incorrect or contradicted by evidence
+        2. Use "uncertain" for all other cases (including when claims are supported by evidence but need manual review)
+        3. For INVALID claims: Provide replacement suggestion with supporting sources
+        4. For UNCERTAIN claims: Include supporting proof sources when available
         
         Consider:
         1. Does the claim match the provided data?
@@ -629,7 +627,7 @@ class ValidationAgent:
         5. Which proof sources support or contradict this claim?
         6. If invalid, what would be a more accurate replacement?
         
-        Be objective and thorough in your analysis. For valid claims, ALWAYS reference the proof sources that support the claim. For invalid claims, provide a replacement suggestion with supporting evidence.
+        Be objective and thorough in your analysis. For uncertain claims, reference supporting proof sources when available. For invalid claims, provide a replacement suggestion with supporting evidence.
         """
     
     def _parse_validation_response(self, claim: str, response: str, proof_sources: List[ProofSource]) -> ValidationResult:
@@ -660,8 +658,8 @@ class ValidationAgent:
                         if isinstance(source_num, int) and 1 <= source_num <= len(proof_sources):
                             proof_sources_used.append(proof_sources[source_num - 1])
                 
-                # For valid claims, if no proof sources were specified, include all available sources
-                if (data.get('status') == 'valid' and 
+                # For uncertain claims that aren't explicitly invalid, include available sources if none specified
+                if (data.get('status') in ['valid', 'uncertain'] and 
                     not proof_sources_used and 
                     proof_sources):
                     proof_sources_used = proof_sources[:3]  # Include top 3 sources
@@ -684,9 +682,16 @@ class ValidationAgent:
                         explanation=replacement_data.get('explanation', '')
                     )
                 
+                # Map old status values to new ones
+                status_value = data.get('status', 'uncertain')
+                if status_value in ['valid', 'needs_review']:
+                    status_value = 'uncertain'
+                elif status_value not in ['invalid', 'uncertain']:
+                    status_value = 'uncertain'
+                
                 return ValidationResult(
                     claim=claim,
-                    status=ValidationStatus(data.get('status', 'uncertain')),
+                    status=ValidationStatus(status_value),
                     confidence_score=float(data.get('confidence_score', 0.0)),
                     explanation=data.get('explanation', 'No explanation provided'),
                     proof_sources=proof_sources_used,
@@ -717,20 +722,19 @@ class ValidationAgent:
         status = ValidationStatus.UNCERTAIN
         confidence = 0.5
         
-        if 'valid' in response.lower() and 'invalid' not in response.lower():
-            status = ValidationStatus.VALID
-            confidence = 0.8
-        elif 'invalid' in response.lower():
+        if 'invalid' in response.lower():
             status = ValidationStatus.INVALID
             confidence = 0.7
         elif 'uncertain' in response.lower() or 'unclear' in response.lower():
             status = ValidationStatus.UNCERTAIN
             confidence = 0.3
+        else:
+            # Default to uncertain for any other response
+            status = ValidationStatus.UNCERTAIN
+            confidence = 0.3
         
-        # For valid claims in fallback, try to include available proof sources
+        # No need for proof sources in fallback since we removed valid status
         fallback_proof_sources = []
-        if status == ValidationStatus.VALID and proof_sources:
-            fallback_proof_sources = proof_sources[:2]  # Include top 2 sources
         
         return ValidationResult(
             claim=claim,
@@ -753,18 +757,16 @@ class ValidationAgent:
             ValidationReport object
         """
         total_claims = len(results)
-        valid_claims = sum(1 for r in results if r.status == ValidationStatus.VALID)
         invalid_claims = sum(1 for r in results if r.status == ValidationStatus.INVALID)
         uncertain_claims = sum(1 for r in results if r.status == ValidationStatus.UNCERTAIN)
         
         overall_confidence = sum(r.confidence_score for r in results) / total_claims if total_claims > 0 else 0.0
         
         # Generate summary
-        summary = self._generate_summary(results, valid_claims, invalid_claims, uncertain_claims, overall_confidence)
+        summary = self._generate_summary(results, invalid_claims, uncertain_claims, overall_confidence)
         
         return ValidationReport(
             total_claims=total_claims,
-            valid_claims=valid_claims,
             invalid_claims=invalid_claims,
             uncertain_claims=uncertain_claims,
             overall_confidence=overall_confidence,
@@ -772,13 +774,12 @@ class ValidationAgent:
             summary=summary
         )
     
-    def _generate_summary(self, results: List[ValidationResult], valid: int, invalid: int, uncertain: int, confidence: float) -> str:
+    def _generate_summary(self, results: List[ValidationResult], invalid: int, uncertain: int, confidence: float) -> str:
         """
         Generate summary text for the validation report
         
         Args:
             results: List of validation results
-            valid: Number of valid claims
             invalid: Number of invalid claims
             uncertain: Number of uncertain claims
             confidence: Overall confidence score
@@ -789,7 +790,7 @@ class ValidationAgent:
         total = len(results)
         
         summary_parts = [
-            f"Validation Summary: {valid}/{total} claims validated successfully",
+            f"Validation Summary: {total} claims analyzed",
             f"Invalid claims: {invalid}, Uncertain claims: {uncertain}",
             f"Overall confidence: {confidence:.2f}"
         ]
@@ -815,7 +816,6 @@ class ValidationAgent:
         """
         report_data = {
             "total_claims": report.total_claims,
-            "valid_claims": report.valid_claims,
             "invalid_claims": report.invalid_claims,
             "uncertain_claims": report.uncertain_claims,
             "overall_confidence": report.overall_confidence,

@@ -20,7 +20,8 @@ const formatFileSize = (size: number) => {
    return `${size} B`;
 };
 
-const getFileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
+const getFileKey = (file: File) =>
+   `${file.name}-${file.size}-${file.lastModified}`;
 
 export default function Home() {
    const [dragActive, setDragActive] = useState(false);
@@ -134,7 +135,11 @@ export default function Home() {
 
       setErrorMessage("");
       setIsUploading(true);
-      setUploadProgress(`Uploading ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}...`);
+      setUploadProgress(
+         `Uploading ${selectedFiles.length} file${
+            selectedFiles.length > 1 ? "s" : ""
+         }...`
+      );
       setDragActive(false);
 
       try {
@@ -148,9 +153,10 @@ export default function Home() {
             formData.append("files", file);
          });
          formData.append("max_slides", "5");
-         const derivedTitle = filesToUpload.length === 1
-            ? filesToUpload[0].name.replace(/\.[^/.]+$/, "")
-            : "Combined Presentation";
+         const derivedTitle =
+            filesToUpload.length === 1
+               ? filesToUpload[0].name.replace(/\.[^/.]+$/, "")
+               : "Combined Presentation";
          formData.append("title", derivedTitle);
 
          const apiPromise = fetch("http://localhost:8000/create-slides", {
@@ -213,7 +219,9 @@ export default function Home() {
                      <div
                         className={`relative transition-all duration-300 ${
                            dragActive ? "scale-105" : ""
-                        } ${isUploading ? "pointer-events-none opacity-80" : ""}`}
+                        } ${
+                           isUploading ? "pointer-events-none opacity-80" : ""
+                        }`}
                         onDragEnter={handleDrag}
                         onDragLeave={handleDrag}
                         onDragOver={handleDrag}
@@ -276,7 +284,8 @@ export default function Home() {
                      {selectedFiles.length > 0 && (
                         <div className="mt-10 text-left">
                            <h4 className="text-sm font-semibold text-muted-foreground mb-3">
-                              Selected files ({selectedFiles.length}/{MAX_FILES})
+                              Selected files ({selectedFiles.length}/{MAX_FILES}
+                              )
                            </h4>
                            <div className="space-y-2">
                               {selectedFiles.map((file, index) => (
@@ -287,7 +296,9 @@ export default function Home() {
                                     <div className="flex items-center space-x-3">
                                        <FileText className="w-4 h-4 text-muted-foreground" />
                                        <div>
-                                          <p className="text-sm font-medium text-foreground">{file.name}</p>
+                                          <p className="text-sm font-medium text-foreground">
+                                             {file.name}
+                                          </p>
                                           <p className="text-xs text-muted-foreground">
                                              {formatFileSize(file.size)}
                                           </p>
@@ -311,7 +322,8 @@ export default function Home() {
 
                      <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-muted-foreground">
-                           You can upload up to {MAX_FILES} files. {isAtLimit ? "Maximum reached." : ""}
+                           You can upload up to {MAX_FILES} files.{" "}
+                           {isAtLimit ? "Maximum reached." : ""}
                         </p>
                         <div className="flex items-center justify-end gap-2">
                            {selectedFiles.length > 0 && !isUploading && (
@@ -322,7 +334,9 @@ export default function Home() {
                            <Button
                               size="lg"
                               onClick={startProcessing}
-                              disabled={selectedFiles.length === 0 || isUploading}
+                              disabled={
+                                 selectedFiles.length === 0 || isUploading
+                              }
                               className="bg-primary hover:bg-primary/90"
                            >
                               {isUploading ? (
@@ -341,21 +355,14 @@ export default function Home() {
                      </div>
 
                      {errorMessage && (
-                        <p className="mt-4 text-sm text-destructive">{errorMessage}</p>
+                        <p className="mt-4 text-sm text-destructive">
+                           {errorMessage}
+                        </p>
                      )}
                   </CardContent>
                </Card>
             </div>
          </main>
-
-         {/* Footer */}
-         <footer className="border-t border-border py-8">
-            <div className="container mx-auto px-6 text-center">
-               <p className="text-muted-foreground">
-                  © 2025 Lovaslide. All rights reserved.
-               </p>
-            </div>
-         </footer>
       </div>
    );
 }

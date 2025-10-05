@@ -22,7 +22,7 @@ interface ProofSource {
 
 interface ValidationResult {
    claim: string;
-   status: "valid" | "invalid" | "uncertain" | "needs_review";
+   status: "invalid" | "uncertain";
    confidence_score: number;
    explanation: string;
    proof_sources: ProofSource[];
@@ -37,7 +37,6 @@ interface ValidationResult {
 interface ValidationResultsProps {
    validation: {
       total_claims: number;
-      valid_claims: number;
       invalid_claims: number;
       uncertain_claims: number;
       overall_confidence: number;
@@ -48,20 +47,16 @@ interface ValidationResultsProps {
 }
 
 const STATUS_LABELS: Record<ValidationResult["status"], string> = {
-   valid: "Valid",
    invalid: "Invalid",
    uncertain: "Uncertain",
-   needs_review: "Needs Review",
 };
 
 const STATUS_BADGE_VARIANTS: Record<
    ValidationResult["status"],
    "default" | "secondary" | "destructive" | "outline"
 > = {
-   valid: "default",
    invalid: "destructive",
    uncertain: "secondary",
-   needs_review: "outline",
 };
 
 const ClaimHighlighter: React.FC<{
@@ -72,8 +67,6 @@ const ClaimHighlighter: React.FC<{
 }> = ({ text, claim, status, onClick }) => {
    const getStatusClasses = (currentStatus: ValidationResult["status"]) => {
       switch (currentStatus) {
-         case "valid":
-            return "border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20";
          case "invalid":
             return "border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20";
          case "uncertain":
@@ -85,13 +78,6 @@ const ClaimHighlighter: React.FC<{
 
    const getStatusIcon = (currentStatus: ValidationResult["status"]) => {
       switch (currentStatus) {
-         case "valid":
-            return (
-               <CheckCircle
-                  className="h-4 w-4 text-primary"
-                  aria-hidden="true"
-               />
-            );
          case "invalid":
             return (
                <XCircle
@@ -367,9 +353,7 @@ export const ValidationResults: React.FC<ValidationResultsProps> = ({
                                        STATUS_BADGE_VARIANTS[result.status]
                                     }
                                     className={`text-xs ${
-                                       result.status === "valid"
-                                          ? "bg-green-700 text-white"
-                                          : result.status === "invalid"
+                                       result.status === "invalid"
                                           ? "bg-red-700 text-white"
                                           : result.status === "uncertain"
                                           ? "bg-yellow-700 text-white"

@@ -179,7 +179,6 @@ async def create_slides(
     print("🔍 Validating slide content...")
     validation_results = {
         "total_claims": 0,
-        "valid_claims": 0,
         "invalid_claims": 0,
         "uncertain_claims": 0,
         "overall_confidence": 0.0,
@@ -201,7 +200,6 @@ async def create_slides(
 
         validation_results = {
             "total_claims": report.total_claims,
-            "valid_claims": report.valid_claims,
             "invalid_claims": report.invalid_claims,
             "uncertain_claims": report.uncertain_claims,
             "overall_confidence": report.overall_confidence,
@@ -240,14 +238,13 @@ async def create_slides(
             ]
         }
 
-        print(f"✅ Validation complete: {report.valid_claims}/{report.total_claims} claims valid")
+        print(f"✅ Validation complete: {report.total_claims} claims analyzed ({report.uncertain_claims} uncertain, {report.invalid_claims} invalid)")
 
     except Exception as validation_error:
         print(f"⚠️ Validation failed: {str(validation_error)}")
         print("📝 Continuing without validation...")
         validation_results = {
             "total_claims": 0,
-            "valid_claims": 0,
             "invalid_claims": 0,
             "uncertain_claims": 0,
             "overall_confidence": 0.0,

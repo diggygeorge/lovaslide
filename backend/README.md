@@ -99,15 +99,14 @@ curl -X POST "http://localhost:8000/create-slides" \
    },
    "validation": {
       "total_claims": 5,
-      "valid_claims": 4,
       "invalid_claims": 1,
-      "uncertain_claims": 0,
+      "uncertain_claims": 4,
       "overall_confidence": 0.85,
-      "summary": "Validation Summary: 4/5 claims validated successfully",
+      "summary": "Validation Summary: 5 claims analyzed",
       "results": [
          {
             "claim": "42% of workforce works remotely",
-            "status": "valid",
+            "status": "uncertain",
             "confidence_score": 0.9,
             "explanation": "This statistic is accurate and well-documented",
             "proof_sources": [
