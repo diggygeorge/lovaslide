@@ -92,7 +92,7 @@ Export validation report to JSON file.
 
 #### ValidationResult
 - `claim` (str): The claim being validated
-- `status` (ValidationStatus): Validation status (valid/invalid/uncertain)
+- `status` (ValidationStatus): Validation status (valid/invalid/uncertain/needs_review)
 - `confidence_score` (float): Confidence score from 0.0 to 1.0
 - `explanation` (str): Detailed explanation of validation
 - `proof_sources` (List[ProofSource]): Proof sources for valid claims

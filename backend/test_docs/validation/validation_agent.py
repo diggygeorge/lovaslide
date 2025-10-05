@@ -27,6 +27,7 @@ class ValidationStatus(Enum):
     VALID = "valid"
     INVALID = "invalid"
     UNCERTAIN = "uncertain"
+    NEEDS_REVIEW = "needs_review"
 
 @dataclass
 class ProofSource:
@@ -603,7 +604,7 @@ class ValidationAgent:
         
         Please provide a comprehensive validation in the following JSON format:
         {{
-            "status": "valid|invalid|uncertain",
+            "status": "valid|invalid|uncertain|needs_review",
             "confidence_score": 0.0-1.0,
             "explanation": "Detailed explanation of your validation reasoning",
             "proof_sources_used": ["List of proof source numbers that support this claim - ALWAYS include sources for valid claims"],
@@ -683,14 +684,9 @@ class ValidationAgent:
                         explanation=replacement_data.get('explanation', '')
                     )
                 
-                # Map needs_review to uncertain for backward compatibility
-                status_value = data.get('status', 'uncertain')
-                if status_value == 'needs_review':
-                    status_value = 'uncertain'
-                
                 return ValidationResult(
                     claim=claim,
-                    status=ValidationStatus(status_value),
+                    status=ValidationStatus(data.get('status', 'uncertain')),
                     confidence_score=float(data.get('confidence_score', 0.0)),
                     explanation=data.get('explanation', 'No explanation provided'),
                     proof_sources=proof_sources_used,

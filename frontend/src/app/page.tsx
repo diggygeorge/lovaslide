@@ -262,11 +262,11 @@ export default function Home() {
                                  </div>
                                  <Button
                                     size="lg"
-                                    className="bg-primary hover:bg-primary/90 hover:cursor-pointer"
+                                    className="bg-primary hover:bg-primary/90"
                                     disabled={isUploading || isAtLimit}
                                  >
                                     <Upload className="w-4 h-4 mr-2" />
-                                    Upload
+                                    Browse Files
                                  </Button>
                               </>
                            )}
@@ -297,7 +297,7 @@ export default function Home() {
                                        <button
                                           type="button"
                                           onClick={() => removeFile(index)}
-                                          className="p-1 rounded-md text-muted-foreground hover:bg-muted transition hover:cursor-pointer"
+                                          className="p-1 rounded-md text-muted-foreground hover:bg-muted transition"
                                           aria-label={`Remove ${file.name}`}
                                        >
                                           <X className="w-4 h-4" />
@@ -315,15 +315,15 @@ export default function Home() {
                         </p>
                         <div className="flex items-center justify-end gap-2">
                            {selectedFiles.length > 0 && !isUploading && (
-                              <Button className="hover:cursor-pointer" variant="ghost" onClick={clearFiles}>
-                                 Clear
+                              <Button variant="ghost" onClick={clearFiles}>
+                                 Clear files
                               </Button>
                            )}
                            <Button
                               size="lg"
                               onClick={startProcessing}
                               disabled={selectedFiles.length === 0 || isUploading}
-                              className="bg-primary hover:bg-primary/90 hover:cursor-pointer"
+                              className="bg-primary hover:bg-primary/90"
                            >
                               {isUploading ? (
                                  <>

@@ -110,7 +110,8 @@ def example_validation():
             status_emoji = {
                 ValidationStatus.VALID: "✅",
                 ValidationStatus.INVALID: "❌",
-                ValidationStatus.UNCERTAIN: "❓"
+                ValidationStatus.UNCERTAIN: "❓",
+                ValidationStatus.NEEDS_REVIEW: "⚠️"
             }
             
             print(f"\n{i}. {status_emoji.get(result.status, '❓')} Claim: {result.claim}")

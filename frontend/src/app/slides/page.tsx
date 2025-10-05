@@ -36,8 +36,6 @@ import {
    Sparkles,
    X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-
 
 const BASE_FONT_STACK =
    "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif";
@@ -289,15 +287,15 @@ function withAnimation(
 type DeckMeta = {
    title: string;
    theme:
-      | "Dark"
-      | "Light"
-      | "Blue"
-      | "Green"
-      | "Purple"
-      | "White"
-      | "Geometric"
-      | "Minimal"
-      | "Creative";
+      | "dark"
+      | "light"
+      | "blue"
+      | "green"
+      | "purple"
+      | "corporate"
+      | "geometric"
+      | "minimal"
+      | "creative";
 };
 
 type SlideMedia = {
@@ -350,7 +348,7 @@ type ThemeConfig = {
    bullet: string;
    watermark: string;
    backgroundPattern?: string;
-   layoutStyle?: "default" | "Geometric" | "Minimal" | "Creative";
+   layoutStyle?: "default" | "geometric" | "minimal" | "creative";
    shapeStyle?: "circles" | "rectangles" | "triangles" | "organic" | "none";
 };
 
@@ -420,7 +418,7 @@ function describeSpeechRecognitionError(error?: string) {
 }
 
 const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
-   Dark: {
+   dark: {
       background: "#040714",
       gradient: ["rgba(56,189,248,0.16)", "rgba(147,51,234,0.14)"],
       panel: "rgba(15,23,42,0.76)",
@@ -433,7 +431,7 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#f8fafc",
       watermark: "rgba(15,23,42,0.68)",
    },
-   Light: {
+   light: {
       background: "#f8fafc",
       gradient: ["rgba(59,130,246,0.14)", "rgba(236,72,153,0.12)"],
       panel: "rgba(255,255,255,0.82)",
@@ -446,7 +444,7 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#1e293b",
       watermark: "rgba(15,23,42,0.06)",
    },
-   Blue: {
+   blue: {
       background: "#0c1821",
       gradient: ["rgba(59,130,246,0.25)", "rgba(99,102,241,0.20)"],
       panel: "rgba(30,58,138,0.85)",
@@ -459,7 +457,7 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#f0f9ff",
       watermark: "rgba(30,58,138,0.75)",
    },
-   Green: {
+   green: {
       background: "#0a1b0e",
       gradient: ["rgba(34,197,94,0.22)", "rgba(16,185,129,0.18)"],
       panel: "rgba(21,128,61,0.80)",
@@ -472,7 +470,7 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#f0fdf4",
       watermark: "rgba(21,128,61,0.70)",
    },
-   Purple: {
+   purple: {
       background: "#1a0f2e",
       gradient: ["rgba(168,85,247,0.24)", "rgba(236,72,153,0.18)"],
       panel: "rgba(88,28,135,0.82)",
@@ -485,7 +483,7 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#faf5ff",
       watermark: "rgba(88,28,135,0.75)",
    },
-   White: {
+   corporate: {
       background: "#f8fafc",
       gradient: ["rgba(51,65,85,0.08)", "rgba(71,85,105,0.06)"],
       panel: "rgba(248,250,252,0.95)",
@@ -498,7 +496,7 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       bullet: "#1e293b",
       watermark: "rgba(51,65,85,0.04)",
    },
-   Geometric: {
+   geometric: {
       background: "#0a0a0a",
       gradient: ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.02)"],
       panel: "rgba(20,20,20,0.90)",
@@ -510,11 +508,11 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       metaText: "rgba(255,255,255,0.60)",
       bullet: "#00d4ff",
       watermark: "rgba(0,212,255,0.10)",
-      backgroundPattern: "Geometric",
-      layoutStyle: "Geometric",
+      backgroundPattern: "geometric",
+      layoutStyle: "geometric",
       shapeStyle: "rectangles",
    },
-   Minimal: {
+   minimal: {
       background: "#ffffff",
       gradient: ["rgba(0,0,0,0.02)", "rgba(0,0,0,0.01)"],
       panel: "rgba(255,255,255,0.95)",
@@ -526,11 +524,11 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       metaText: "rgba(0,0,0,0.50)",
       bullet: "#000000",
       watermark: "rgba(0,0,0,0.03)",
-      backgroundPattern: "Minimal",
-      layoutStyle: "Minimal",
+      backgroundPattern: "minimal",
+      layoutStyle: "minimal",
       shapeStyle: "none",
    },
-   Creative: {
+   creative: {
       background: "#1a0b2e",
       gradient: ["rgba(255,20,147,0.15)", "rgba(0,191,255,0.10)"],
       panel: "rgba(30,15,50,0.85)",
@@ -542,8 +540,8 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
       metaText: "rgba(255,20,147,0.80)",
       bullet: "#00bfff",
       watermark: "rgba(255,20,147,0.10)",
-      backgroundPattern: "Creative",
-      layoutStyle: "Creative",
+      backgroundPattern: "creative",
+      layoutStyle: "creative",
       shapeStyle: "organic",
    },
 };
@@ -551,13 +549,13 @@ const themePalette: Record<DeckMeta["theme"], ThemeConfig> = {
 const demoDeck: { meta: DeckMeta; slides: DeckSlide[] } = {
    meta: {
       title: "Enhanced Demo Deck",
-      theme: "Green",
+      theme: "green",
    },
    slides: [
       {
          layout: "title",
          title: "Welcome to the Enhanced Demo",
-         notes: "Set the tone and highLight the big promise upfront.",
+         notes: "Set the tone and highlight the big promise upfront.",
          animations: {
             title: {
                type: "zoomIn",
@@ -905,7 +903,7 @@ async function loadSlideImage(url?: string): Promise<HTMLImageElement | null> {
    const request = new Promise<HTMLImageElement | null>((resolve) => {
       const img = new Image();
       if (!isDataUrl) {
-      img.crossOrigin = "anonymous";
+         img.crossOrigin = "anonymous";
       }
       const src = isDataUrl
          ? url
@@ -1073,7 +1071,7 @@ function drawGeometricPattern(
 ) {
    ctx.save();
 
-   // Draw Geometric rectangles
+   // Draw geometric rectangles
    const rectSize = 120;
    const spacing = 200;
 
@@ -1233,62 +1231,62 @@ function drawAccentShapes(
    ctx.save();
 
    // Use theme-specific pattern
-   if (theme.backgroundPattern === "Geometric") {
+   if (theme.backgroundPattern === "geometric") {
       drawGeometricPattern(ctx, theme, width, height);
-   } else if (theme.backgroundPattern === "Minimal") {
+   } else if (theme.backgroundPattern === "minimal") {
       drawMinimalPattern(ctx, theme, width, height);
-   } else if (theme.backgroundPattern === "Creative") {
+   } else if (theme.backgroundPattern === "creative") {
       drawCreativePattern(ctx, theme, width, height);
    } else {
       // Default pattern
-   const gradient = ctx.createRadialGradient(
-      width * 0.78,
-      height * 0.18,
-      0,
-      width * 0.78,
-      height * 0.18,
-      width * 0.48
-   );
-   gradient.addColorStop(0, theme.accentSoft);
-   gradient.addColorStop(1, "rgba(56,189,248,0)");
-   ctx.fillStyle = gradient;
-   ctx.fillRect(0, 0, width, height);
+      const gradient = ctx.createRadialGradient(
+         width * 0.78,
+         height * 0.18,
+         0,
+         width * 0.78,
+         height * 0.18,
+         width * 0.48
+      );
+      gradient.addColorStop(0, theme.accentSoft);
+      gradient.addColorStop(1, "rgba(56,189,248,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
 
-   const gradient2 = ctx.createRadialGradient(
-      width * 0.22,
-      height * 0.82,
-      0,
-      width * 0.22,
-      height * 0.82,
-      width * 0.45
-   );
-   gradient2.addColorStop(0, "rgba(147,51,234,0.18)");
-   gradient2.addColorStop(1, "rgba(147,51,234,0)");
-   ctx.fillStyle = gradient2;
-   ctx.fillRect(0, 0, width, height);
+      const gradient2 = ctx.createRadialGradient(
+         width * 0.22,
+         height * 0.82,
+         0,
+         width * 0.22,
+         height * 0.82,
+         width * 0.45
+      );
+      gradient2.addColorStop(0, "rgba(147,51,234,0.18)");
+      gradient2.addColorStop(1, "rgba(147,51,234,0)");
+      ctx.fillStyle = gradient2;
+      ctx.fillRect(0, 0, width, height);
    }
 
-   // Add watermark shapes for non-Minimal themes
-   if (theme.layoutStyle !== "Minimal") {
-   ctx.globalAlpha = 0.35;
-   drawRoundedRect(
-      ctx,
-      width * 0.12,
-      height * 0.18,
-      width * 0.16,
-      height * 0.12,
-      32,
-      theme.watermark
-   );
-   drawRoundedRect(
-      ctx,
-      width * 0.68,
-      height * 0.62,
-      width * 0.18,
-      height * 0.16,
-      42,
-      theme.watermark
-   );
+   // Add watermark shapes for non-minimal themes
+   if (theme.layoutStyle !== "minimal") {
+      ctx.globalAlpha = 0.35;
+      drawRoundedRect(
+         ctx,
+         width * 0.12,
+         height * 0.18,
+         width * 0.16,
+         height * 0.12,
+         32,
+         theme.watermark
+      );
+      drawRoundedRect(
+         ctx,
+         width * 0.68,
+         height * 0.62,
+         width * 0.18,
+         height * 0.16,
+         42,
+         theme.watermark
+      );
    }
 
    ctx.restore();
@@ -1370,20 +1368,20 @@ function drawBulletedList(
          safeProgress,
          { x, y, width: maxWidth, height: blockHeight },
          () => {
-      ctx.save();
-      ctx.fillStyle = theme.accent;
-      ctx.beginPath();
-      ctx.arc(x + 6, y + lineHeight / 2 - 2, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+            ctx.save();
+            ctx.fillStyle = theme.accent;
+            ctx.beginPath();
+            ctx.arc(x + 6, y + lineHeight / 2 - 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
 
-      ctx.save();
-      ctx.fillStyle = theme.textSecondary;
-      ctx.textBaseline = "top";
+            ctx.save();
+            ctx.fillStyle = theme.textSecondary;
+            ctx.textBaseline = "top";
             displayLines.forEach((line, lineIndex) => {
                ctx.fillText(line, x + bulletIndent, y + lineIndex * lineHeight);
-      });
-      ctx.restore();
+            });
+            ctx.restore();
          }
       );
 
@@ -1436,10 +1434,10 @@ async function drawTitleSlide(
       },
       () => {
          let currentY = y;
-   titleLines.forEach((line) => {
+         titleLines.forEach((line) => {
             ctx.fillText(line, width / 2, currentY);
             currentY += titleSize * 1.12;
-   });
+         });
       }
    );
 
@@ -1488,11 +1486,11 @@ async function drawTitleWithBullets(
          height: titleHeight,
       },
       () => {
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += titleSize * 1.12;
-   });
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += titleSize * 1.12;
+         });
       }
    );
 
@@ -1630,11 +1628,11 @@ async function drawTwoColumnSlide(
       titleProgress,
       { x: paddingX, y: top, width: contentWidth, height: titleHeight },
       () => {
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += 54 * 1.1;
-   });
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += 54 * 1.1;
+         });
       }
    );
 
@@ -1752,64 +1750,64 @@ async function drawImageLeftSlide(
          height: imageHeight + 24,
       },
       () => {
-   drawRoundedRect(
-      ctx,
-      imageX - 12,
-      imageY - 12,
-      imageWidth + 24,
-      imageHeight + 24,
-      34,
-      theme.panel,
-      theme.panelStroke,
-      1
-   );
+         drawRoundedRect(
+            ctx,
+            imageX - 12,
+            imageY - 12,
+            imageWidth + 24,
+            imageHeight + 24,
+            34,
+            theme.panel,
+            theme.panelStroke,
+            1
+         );
 
-   if (image) {
-      ctx.save();
-      const radius = 28;
-      ctx.beginPath();
-      ctx.moveTo(imageX + radius, imageY);
-      ctx.lineTo(imageX + imageWidth - radius, imageY);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY,
-         imageX + imageWidth,
-         imageY + radius
-      );
-      ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY + imageHeight,
-         imageX + imageWidth - radius,
-         imageY + imageHeight
-      );
-      ctx.lineTo(imageX + radius, imageY + imageHeight);
-      ctx.quadraticCurveTo(
-         imageX,
-         imageY + imageHeight,
-         imageX,
-         imageY + imageHeight - radius
-      );
-      ctx.lineTo(imageX, imageY + radius);
-      ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-      ctx.restore();
-   } else {
-      ctx.save();
-      ctx.fillStyle = theme.accentSoft;
-      ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
-      ctx.fillStyle = theme.textSecondary;
-      ctx.font = `500 18px ${BASE_FONT_STACK}`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-         mediaItem?.alt ?? "Image unavailable",
-         imageX + imageWidth / 2,
-         imageY + imageHeight / 2 - 12
-      );
-      ctx.restore();
-   }
+         if (image) {
+            ctx.save();
+            const radius = 28;
+            ctx.beginPath();
+            ctx.moveTo(imageX + radius, imageY);
+            ctx.lineTo(imageX + imageWidth - radius, imageY);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY,
+               imageX + imageWidth,
+               imageY + radius
+            );
+            ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY + imageHeight,
+               imageX + imageWidth - radius,
+               imageY + imageHeight
+            );
+            ctx.lineTo(imageX + radius, imageY + imageHeight);
+            ctx.quadraticCurveTo(
+               imageX,
+               imageY + imageHeight,
+               imageX,
+               imageY + imageHeight - radius
+            );
+            ctx.lineTo(imageX, imageY + radius);
+            ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+            ctx.restore();
+         } else {
+            ctx.save();
+            ctx.fillStyle = theme.accentSoft;
+            ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
+            ctx.fillStyle = theme.textSecondary;
+            ctx.font = `500 18px ${BASE_FONT_STACK}`;
+            ctx.textAlign = "center";
+            ctx.fillText(
+               mediaItem?.alt ?? "Image unavailable",
+               imageX + imageWidth / 2,
+               imageY + imageHeight / 2 - 12
+            );
+            ctx.restore();
+         }
       }
    );
 
@@ -1834,11 +1832,11 @@ async function drawImageLeftSlide(
          height: titleHeight,
       },
       () => {
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, contentX, cursorY);
-      cursorY += 52 * 1.12;
-   });
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, contentX, cursorY);
+            cursorY += 52 * 1.12;
+         });
       }
    );
 
@@ -1891,11 +1889,11 @@ async function drawRoadmapSlide(
       titleProgress,
       { x: paddingX, y: top, width: contentWidth, height: titleHeight },
       () => {
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += 56 * 1.08;
-   });
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += 56 * 1.08;
+         });
       }
    );
 
@@ -1935,43 +1933,43 @@ async function drawRoadmapSlide(
          progress,
          { x: paddingX, y: y - 32, width: contentWidth, height: 64 },
          () => {
-      ctx.save();
-      ctx.fillStyle = theme.accent;
-      ctx.beginPath();
-      ctx.arc(paddingX + 6, y, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+            ctx.save();
+            ctx.fillStyle = theme.accent;
+            ctx.beginPath();
+            ctx.arc(paddingX + 6, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
 
-      const badgeWidth = 120;
-      drawRoundedRect(
-         ctx,
-         paddingX + 26,
-         y - 16,
-         badgeWidth,
-         32,
-         14,
-         theme.panel,
-         theme.panelStroke,
-         1
-      );
-      ctx.save();
-      ctx.fillStyle = theme.metaText;
-      ctx.font = `600 14px ${BASE_FONT_STACK}`;
+            const badgeWidth = 120;
+            drawRoundedRect(
+               ctx,
+               paddingX + 26,
+               y - 16,
+               badgeWidth,
+               32,
+               14,
+               theme.panel,
+               theme.panelStroke,
+               1
+            );
+            ctx.save();
+            ctx.fillStyle = theme.metaText;
+            ctx.font = `600 14px ${BASE_FONT_STACK}`;
             ctx.fillText(
                `Phase ${index + 1}`,
                paddingX + 26 + badgeWidth / 2,
                y - 8
             );
-      ctx.restore();
+            ctx.restore();
 
-      const stepX = paddingX + 26 + badgeWidth + 24;
-      const stepWidth = width - stepX - paddingX;
-      const lines = wrapLines(ctx, step, stepWidth);
-      let textY = y - 10;
-      lines.forEach((line) => {
-         ctx.fillText(line, stepX, textY);
-         textY += 30;
-      });
+            const stepX = paddingX + 26 + badgeWidth + 24;
+            const stepWidth = width - stepX - paddingX;
+            const lines = wrapLines(ctx, step, stepWidth);
+            let textY = y - 10;
+            lines.forEach((line) => {
+               ctx.fillText(line, stepX, textY);
+               textY += 30;
+            });
          }
       );
    });
@@ -2024,11 +2022,11 @@ async function drawQuoteSlide(
          height: quoteHeight,
       },
       () => {
-   let cursorY = top;
-   quoteLines.forEach((line) => {
-      ctx.fillText(line, width / 2, cursorY);
-      cursorY += 56;
-   });
+         let cursorY = top;
+         quoteLines.forEach((line) => {
+            ctx.fillText(line, width / 2, cursorY);
+            cursorY += 56;
+         });
       }
    );
 
@@ -2054,7 +2052,7 @@ async function drawQuoteSlide(
          quoteProgress,
          { x: width / 2 - 200, y: cursorY, width: 400, height: 28 },
          () => {
-      ctx.fillText("— " + slide.author, width / 2, cursorY);
+            ctx.fillText("— " + slide.author, width / 2, cursorY);
          }
       );
    }
@@ -2120,17 +2118,17 @@ async function drawStatsSlide(
          progress,
          { x, y, width: cardWidth, height: cardHeight },
          () => {
-      drawRoundedRect(
-         ctx,
-         x,
-         y,
-         cardWidth,
-         cardHeight,
-         20,
-         theme.panel,
-         theme.panelStroke,
-         1
-      );
+            drawRoundedRect(
+               ctx,
+               x,
+               y,
+               cardWidth,
+               cardHeight,
+               20,
+               theme.panel,
+               theme.panelStroke,
+               1
+            );
 
       ctx.font = `bold 48px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.accent;
@@ -2164,12 +2162,12 @@ async function drawStatsSlide(
                   stat.description,
                   cardWidth - 32
                );
-         let descY = y + 115;
-         descLines.forEach((line) => {
-            ctx.fillText(line, x + cardWidth / 2, descY);
-            descY += 18;
-         });
-      }
+               let descY = y + 115;
+               descLines.forEach((line) => {
+                  ctx.fillText(line, x + cardWidth / 2, descY);
+                  descY += 18;
+               });
+            }
          }
       );
    });
@@ -2210,7 +2208,7 @@ async function drawComparisonSlide(
       animationProgress?.title ?? (slide.animations?.title ? 0 : 1),
       { x: paddingX, y: top, width: columnWidth, height: 48 },
       () => {
-   ctx.fillText(comparison.left.title, paddingX, top);
+         ctx.fillText(comparison.left.title, paddingX, top);
       }
    );
 
@@ -2228,15 +2226,15 @@ async function drawComparisonSlide(
          progress,
          { x: paddingX, y: cursorY, width: columnWidth, height: 32 },
          () => {
-      ctx.save();
+            ctx.save();
             ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.arc(paddingX + 12, cursorY + 12, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+            ctx.beginPath();
+            ctx.arc(paddingX + 12, cursorY + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
 
-      ctx.fillStyle = theme.textSecondary;
-      ctx.fillText(item, paddingX + 30, cursorY);
+            ctx.fillStyle = theme.textSecondary;
+            ctx.fillText(item, paddingX + 30, cursorY);
          }
       );
 
@@ -2251,9 +2249,9 @@ async function drawComparisonSlide(
       animationProgress?.title ?? (slide.animations?.title ? 0 : 1),
       { x: rightX, y: top, width: columnWidth, height: 48 },
       () => {
-   ctx.font = `700 32px ${BASE_FONT_STACK}`;
-   ctx.fillStyle = theme.textPrimary;
-   ctx.fillText(comparison.right.title, rightX, top);
+         ctx.font = `700 32px ${BASE_FONT_STACK}`;
+         ctx.fillStyle = theme.textPrimary;
+         ctx.fillText(comparison.right.title, rightX, top);
       }
    );
 
@@ -2271,15 +2269,15 @@ async function drawComparisonSlide(
          progress,
          { x: rightX, y: cursorY, width: columnWidth, height: 32 },
          () => {
-      ctx.save();
+            ctx.save();
             ctx.fillStyle = theme.accent;
-      ctx.beginPath();
-      ctx.arc(rightX + 12, cursorY + 12, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+            ctx.beginPath();
+            ctx.arc(rightX + 12, cursorY + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
 
-      ctx.fillStyle = theme.textSecondary;
-      ctx.fillText(item, rightX + 30, cursorY);
+            ctx.fillStyle = theme.textSecondary;
+            ctx.fillText(item, rightX + 30, cursorY);
          }
       );
 
@@ -2325,64 +2323,64 @@ async function drawImageRightSlide(
          height: imageHeight + 24,
       },
       () => {
-   drawRoundedRect(
-      ctx,
-      imageX - 12,
-      imageY - 12,
-      imageWidth + 24,
-      imageHeight + 24,
-      34,
-      theme.panel,
-      theme.panelStroke,
-      1
-   );
+         drawRoundedRect(
+            ctx,
+            imageX - 12,
+            imageY - 12,
+            imageWidth + 24,
+            imageHeight + 24,
+            34,
+            theme.panel,
+            theme.panelStroke,
+            1
+         );
 
-   if (image) {
-      ctx.save();
-      const radius = 28;
-      ctx.beginPath();
-      ctx.moveTo(imageX + radius, imageY);
-      ctx.lineTo(imageX + imageWidth - radius, imageY);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY,
-         imageX + imageWidth,
-         imageY + radius
-      );
-      ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
-      ctx.quadraticCurveTo(
-         imageX + imageWidth,
-         imageY + imageHeight,
-         imageX + imageWidth - radius,
-         imageY + imageHeight
-      );
-      ctx.lineTo(imageX + radius, imageY + imageHeight);
-      ctx.quadraticCurveTo(
-         imageX,
-         imageY + imageHeight,
-         imageX,
-         imageY + imageHeight - radius
-      );
-      ctx.lineTo(imageX, imageY + radius);
-      ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-      ctx.restore();
-   } else {
-      ctx.save();
-      ctx.fillStyle = theme.accentSoft;
-      ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
-      ctx.fillStyle = theme.textSecondary;
-      ctx.font = `500 18px ${BASE_FONT_STACK}`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-         mediaItem?.alt ?? "Image unavailable",
-         imageX + imageWidth / 2,
-         imageY + imageHeight / 2 - 12
-      );
-      ctx.restore();
-   }
+         if (image) {
+            ctx.save();
+            const radius = 28;
+            ctx.beginPath();
+            ctx.moveTo(imageX + radius, imageY);
+            ctx.lineTo(imageX + imageWidth - radius, imageY);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY,
+               imageX + imageWidth,
+               imageY + radius
+            );
+            ctx.lineTo(imageX + imageWidth, imageY + imageHeight - radius);
+            ctx.quadraticCurveTo(
+               imageX + imageWidth,
+               imageY + imageHeight,
+               imageX + imageWidth - radius,
+               imageY + imageHeight
+            );
+            ctx.lineTo(imageX + radius, imageY + imageHeight);
+            ctx.quadraticCurveTo(
+               imageX,
+               imageY + imageHeight,
+               imageX,
+               imageY + imageHeight - radius
+            );
+            ctx.lineTo(imageX, imageY + radius);
+            ctx.quadraticCurveTo(imageX, imageY, imageX + radius, imageY);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+            ctx.restore();
+         } else {
+            ctx.save();
+            ctx.fillStyle = theme.accentSoft;
+            ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
+            ctx.fillStyle = theme.textSecondary;
+            ctx.font = `500 18px ${BASE_FONT_STACK}`;
+            ctx.textAlign = "center";
+            ctx.fillText(
+               mediaItem?.alt ?? "Image unavailable",
+               imageX + imageWidth / 2,
+               imageY + imageHeight / 2 - 12
+            );
+            ctx.restore();
+         }
       }
    );
 
@@ -2407,11 +2405,11 @@ async function drawImageRightSlide(
          height: titleHeight,
       },
       () => {
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, contentX, cursorY);
-      cursorY += 52 * 1.12;
-   });
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, contentX, cursorY);
+            cursorY += 52 * 1.12;
+         });
       }
    );
 
@@ -2464,11 +2462,11 @@ async function drawThreeColumnSlide(
       titleProgress,
       { x: paddingX, y: top, width: contentWidth, height: titleHeight },
       () => {
-   let cursorY = top;
-   titleLines.forEach((line) => {
-      ctx.fillText(line, paddingX, cursorY);
-      cursorY += 44 * 1.1;
-   });
+         let cursorY = top;
+         titleLines.forEach((line) => {
+            ctx.fillText(line, paddingX, cursorY);
+            cursorY += 44 * 1.1;
+         });
       }
    );
 
@@ -2522,16 +2520,16 @@ async function drawSlide(
       animationProgress?.background ?? (backgroundAnimation ? 0 : 1);
 
    const paintBackground = () => {
-   ctx.fillStyle = theme.background;
-   ctx.fillRect(0, 0, width, height);
-   const bgGradient = ctx.createLinearGradient(0, 0, width, height);
-   bgGradient.addColorStop(0, theme.gradient[0]);
-   bgGradient.addColorStop(1, theme.gradient[1]);
-   ctx.fillStyle = bgGradient;
-   ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = theme.background;
+      ctx.fillRect(0, 0, width, height);
+      const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+      bgGradient.addColorStop(0, theme.gradient[0]);
+      bgGradient.addColorStop(1, theme.gradient[1]);
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, width, height);
 
-   drawAccentShapes(ctx, theme, width, height);
-   drawMetaHeader(ctx, slide, meta, theme, width);
+      drawAccentShapes(ctx, theme, width, height);
+      drawMetaHeader(ctx, slide, meta, theme, width);
    };
 
    if (backgroundAnimation) {
@@ -2698,7 +2696,7 @@ async function renderSlideToCanvas(
       ctx.scale(pixelRatio, pixelRatio);
    }
 
-   const theme = themePalette[meta.theme] ?? themePalette.Dark;
+   const theme = themePalette[meta.theme] ?? themePalette.dark;
    await drawSlide(
       ctx,
       slide,
@@ -2930,7 +2928,7 @@ const SLIDE_MASTER_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?
       </a:defPPr>
     </p:otherStyle>
   </p:txStyles>
-  <p:clrMap accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" bg1="Light1" bg2="Light2" folHlink="folHlink" hlink="hlink" tx1="Dark1" tx2="Dark2"/>
+  <p:clrMap accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" bg1="light1" bg2="light2" folHlink="folHlink" hlink="hlink" tx1="dark1" tx2="dark2"/>
 </p:sldMaster>`;
 
 const SLIDE_MASTER_RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -3430,7 +3428,7 @@ const SlidePreview = ({
 
       const enqueueRender = (progress?: Record<string, number>) => {
          renderQueue = renderQueue.then(() => {
-         if (cancelled) return;
+            if (cancelled) return;
             return renderSlideToCanvas(canvas, slide, meta, {
                pixelRatio: 1,
                animationProgress: progress,
@@ -3453,7 +3451,7 @@ const SlidePreview = ({
          onAnimationStart?.();
 
          const step = (timestamp: number) => {
-         if (cancelled) return;
+            if (cancelled) return;
             if (startTimestamp === null) {
                startTimestamp = timestamp;
             }
@@ -3552,8 +3550,6 @@ export default function SlidesWorkspacePage() {
    const voiceSubmissionLockRef = useRef(false);
    const voiceReconnectAttemptsRef = useRef(0);
    const voiceRetryTimeoutRef = useRef<number | null>(null);
-
-   const router = useRouter();
 
    const backendBaseUrl = useMemo(() => {
       const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -4212,7 +4208,7 @@ export default function SlidesWorkspacePage() {
                <div className="w-full h-full flex items-center justify-center p-8">
                   {isSlideLoading ? (
                      <div className="flex items-center justify-center">
-                        <div className="text-White text-lg">
+                        <div className="text-white text-lg">
                            Loading slide...
                         </div>
                      </div>
@@ -4235,11 +4231,11 @@ export default function SlidesWorkspacePage() {
                      size="sm"
                      onClick={handlePrevSlide}
                      disabled={activeSlideIndex === 0}
-                     className="text-White hover:bg-White/20 hover:cursor-pointer"
+                     className="text-white hover:bg-white/20"
                   >
                      ←
                   </Button>
-                  <span className="text-White text-sm px-4">
+                  <span className="text-white text-sm px-4">
                      {activeSlideIndex + 1} / {slidesCount}
                   </span>
                   <Button
@@ -4247,7 +4243,7 @@ export default function SlidesWorkspacePage() {
                      size="sm"
                      onClick={handleNextSlide}
                      disabled={activeSlideIndex === slidesCount - 1}
-                     className="text-White hover:bg-White/20 hover:cursor-pointer"
+                     className="text-white hover:bg-white/20"
                   >
                      →
                   </Button>
@@ -4257,7 +4253,7 @@ export default function SlidesWorkspacePage() {
                   variant="ghost"
                   size="sm"
                   onClick={handleExitPresent}
-                  className="absolute top-8 right-8 text-White hover:bg-White/20 hover:cursor-pointer"
+                  className="absolute top-8 right-8 text-white hover:bg-white/20"
                >
                   ✕
                </Button>
@@ -4271,9 +4267,7 @@ export default function SlidesWorkspacePage() {
          <header className="flex items-center justify-between border-b border-border/60 bg-background/95 backdrop-blur w-full">
             <div className="flex items-center justify-between gap-4 px-6 py-4 w-full">
                <div className="flex items-center gap-4">
-                  <Button className="hover:cursor-pointer hover:bg-blue" onClick={() => router.push('/')}>
-                     <LayoutDashboard className="h-8 w-8" />
-                  </Button>
+                  <LayoutDashboard className="h-8 w-8" />
                   <div>
                      <h1 className="text-2xl font-semibold text-foreground">
                         Lovaslide Presentation Workspace
@@ -4287,55 +4281,55 @@ export default function SlidesWorkspacePage() {
                <div className="flex items-center gap-3">
                   <DropdownMenu>
                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2 hover:cursor-pointer">
+                        <Button variant="outline" size="sm" className="gap-2">
                            Theme: {currentTheme}
                            <ChevronDown className="h-4 w-4" />
                         </Button>
                      </DropdownMenuTrigger>
                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Light")}
+                           onSelect={() => setCurrentTheme("light")}
                         >
                            Light
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Dark")}
+                           onSelect={() => setCurrentTheme("dark")}
                         >
                            Dark
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Blue")}
+                           onSelect={() => setCurrentTheme("blue")}
                         >
                            Blue
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Green")}
+                           onSelect={() => setCurrentTheme("green")}
                         >
                            Green
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Purple")}
+                           onSelect={() => setCurrentTheme("purple")}
                         >
                            Purple
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("White")}
+                           onSelect={() => setCurrentTheme("corporate")}
                         >
-                           White
+                           Corporate
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Geometric")}
+                           onSelect={() => setCurrentTheme("geometric")}
                         >
                            Geometric
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Minimal")}
+                           onSelect={() => setCurrentTheme("minimal")}
                         >
                            Minimal
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                           onSelect={() => setCurrentTheme("Creative")}
+                           onSelect={() => setCurrentTheme("creative")}
                         >
                            Creative
                         </DropdownMenuItem>
@@ -4344,7 +4338,7 @@ export default function SlidesWorkspacePage() {
                   <Button
                      variant="outline"
                      size="sm"
-                     className="gap-2 hover:cursor-pointer"
+                     className="gap-2"
                      onClick={() => {
                         if (!activeSlide?.animations) return;
                         setAnimationTrigger((previous) => previous + 1);
@@ -4357,7 +4351,7 @@ export default function SlidesWorkspacePage() {
                   <Button
                      variant="outline"
                      size="sm"
-                     className="gap-2 hover:cursor-pointer"
+                     className="gap-2"
                      onClick={handlePresent}
                   >
                      <Play className="h-4 w-4" />
@@ -4367,7 +4361,7 @@ export default function SlidesWorkspacePage() {
                      <DropdownMenuTrigger asChild>
                         <Button
                            size="sm"
-                           className="gap-2 hover:cursor-pointer"
+                           className="gap-2"
                            disabled={!!exportingFormat}
                         >
                            {exportButtonLabel}
@@ -4431,7 +4425,7 @@ export default function SlidesWorkspacePage() {
                         </div>
                      </CardHeader>
                      <CardContent>
-                        <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-White/10 bg-black/80">
+                        <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-black/80">
                            <div className="relative h-full w-full">
                               <SlidePreview
                                  slide={activeSlide}
@@ -4442,12 +4436,12 @@ export default function SlidesWorkspacePage() {
                               />
                            </div>
                            <div className="pointer-events-none absolute bottom-4 left-6 right-6">
-                              <div className="pointer-events-auto rounded-2xl border border-White/15 bg-black/70 backdrop-blur overflow-hidden transition-all duration-300 ease-in-out">
+                              <div className="pointer-events-auto rounded-2xl border border-white/15 bg-black/70 backdrop-blur overflow-hidden transition-all duration-300 ease-in-out">
                                  <div className="flex justify-center py-1">
                                     <Button
                                        variant="ghost"
                                        size="icon-sm"
-                                       className="h-6 w-12 rounded-full border border-White/20 text-White hover:border-primary/40 hover:text-primary hover:cursor-pointer"
+                                       className="h-6 w-12 rounded-full border border-white/20 text-white hover:border-primary/40 hover:text-primary"
                                        aria-label={
                                           isDockOpen ? "Hide dock" : "Show dock"
                                        }
@@ -4476,7 +4470,7 @@ export default function SlidesWorkspacePage() {
                                           <Button
                                              variant="ghost"
                                              size="icon-sm"
-                                             className="h-8 w-8 rounded-full border border-White/20 text-White hover:border-primary/40 hover:text-primary disabled:opacity-40 hover:cursor-pointer"
+                                             className="h-8 w-8 rounded-full border border-white/20 text-white hover:border-primary/40 hover:text-primary disabled:opacity-40"
                                              aria-label="Previous slide"
                                              onClick={handlePrevSlide}
                                              disabled={isFirstSlide}
@@ -4522,14 +4516,14 @@ export default function SlidesWorkspacePage() {
                                                       handleSelectSlide(index)
                                                    }
                                                    className={cn(
-                                                      "w-[156px] rounded-xl border px-3 py-2 text-left transition-colors hover:cursor-pointer",
+                                                      "w-[156px] rounded-xl border px-3 py-2 text-left transition-colors",
                                                       index ===
                                                          validActiveSlideIndex
                                                          ? "border-primary/60 bg-primary/20 text-primary-foreground"
-                                                         : "border-White/10 bg-black/40 text-White/70 hover:border-White/30"
+                                                         : "border-white/10 bg-black/40 text-white/70 hover:border-white/30"
                                                    )}
                                                 >
-                                                   <p className="text-xs uppercase tracking-wide text-White/60">
+                                                   <p className="text-xs uppercase tracking-wide text-white/60">
                                                       {slide.layout.replace(
                                                          /-/g,
                                                          " "
@@ -4545,7 +4539,7 @@ export default function SlidesWorkspacePage() {
                                           <Button
                                              variant="ghost"
                                              size="icon-sm"
-                                             className="h-8 w-8 rounded-full border border-White/20 text-White hover:border-primary/40 hover:text-primary disabled:opacity-40 hover:cursor-pointer"
+                                             className="h-8 w-8 rounded-full border border-white/20 text-white hover:border-primary/40 hover:text-primary disabled:opacity-40"
                                              aria-label="Next slide"
                                              onClick={handleNextSlide}
                                              disabled={isLastSlide}
@@ -4593,7 +4587,7 @@ export default function SlidesWorkspacePage() {
                                        className={cn(
                                           "rounded-lg border p-3 text-sm transition-colors",
                                           note.status === "completed"
-                                             ? "border-Green-500/30 bg-Green-500/10 text-foreground"
+                                             ? "border-green-500/30 bg-green-500/10 text-foreground"
                                              : "border-yellow-500/30 bg-yellow-500/10 text-foreground"
                                        )}
                                     >
@@ -4676,7 +4670,7 @@ export default function SlidesWorkspacePage() {
                                     <button
                                        onClick={() => setEditScope("slide")}
                                        className={cn(
-                                          "px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1 hover:cursor-pointer",
+                                          "px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1",
                                           editScope === "slide"
                                              ? "bg-primary text-primary-foreground"
                                              : "text-muted-foreground hover:text-foreground"
@@ -4688,7 +4682,7 @@ export default function SlidesWorkspacePage() {
                                     <button
                                        onClick={() => setEditScope("all")}
                                        className={cn(
-                                          "px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1 hover:cursor-pointer",
+                                          "px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1",
                                           editScope === "all"
                                              ? "bg-primary text-primary-foreground"
                                              : "text-muted-foreground hover:text-foreground"
@@ -4703,13 +4697,13 @@ export default function SlidesWorkspacePage() {
                            {editScope === "slide" &&
                               slideNotes[validActiveSlideIndex]?.length >=
                                  3 && (
-                                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 Dark:text-amber-400">
+                                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
                                     Note limit reached (3/3) for this slide. New
                                     notes will replace the oldest.
                                  </div>
                               )}
                            {editScope === "all" && generalNotes.length >= 5 && (
-                              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 Dark:text-amber-400">
+                              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
                                  Note limit reached (5/5) for general notes. New
                                  notes will replace the oldest.
                               </div>
@@ -4728,7 +4722,7 @@ export default function SlidesWorkspacePage() {
                            <div className="flex items-center gap-2">
                               <Button
                                  size="sm"
-                                 className="gap-2 flex-1 hover:cursor-pointer"
+                                 className="gap-2 flex-1"
                                  onClick={() => {
                                     void handleSubmitNote();
                                  }}
@@ -4742,7 +4736,7 @@ export default function SlidesWorkspacePage() {
                                  ) : (
                                     <>
                                        <Send className="h-4 w-4" />
-                                       Send
+                                       Send to agent
                                     </>
                                  )}
                               </Button>
@@ -4763,7 +4757,7 @@ export default function SlidesWorkspacePage() {
                            found)
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                           Click on highLighted text to see validation details
+                           Click on highlighted text to see validation details
                            and proof sources.
                         </p>
                      </CardHeader>
@@ -4789,12 +4783,12 @@ export default function SlidesWorkspacePage() {
             <Card className="fixed bottom-24 right-6 z-50 w-[min(420px,calc(100vw-2.5rem))] border-border/70 bg-background/95 shadow-2xl backdrop-blur">
                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                   <CardTitle className="text-base font-semibold">
-                     Mic
+                     Talk to Slides
                   </CardTitle>
                   <Button
                      variant="ghost"
                      size="icon-sm"
-                     className="h-8 w-8 rounded-full hover:cursor-pointer"
+                     className="h-8 w-8 rounded-full"
                      onClick={closeVoicePanel}
                      aria-label="Close voice assistant"
                   >
@@ -4852,7 +4846,7 @@ export default function SlidesWorkspacePage() {
                      <Button
                         variant={isListening ? "secondary" : "outline"}
                         size="sm"
-                        className="gap-2 hover:cursor-pointer"
+                        className="gap-2"
                         onClick={() => {
                            if (isListening) {
                               stopListening();
@@ -4876,7 +4870,7 @@ export default function SlidesWorkspacePage() {
                      </Button>
                      <Button
                         size="sm"
-                        className="gap-2 hover:cursor-pointer"
+                        className="gap-2"
                         disabled={
                            isProcessing ||
                            (!voiceTranscript.trim() &&
@@ -4902,7 +4896,6 @@ export default function SlidesWorkspacePage() {
                      </Button>
                      <Button
                         variant="ghost"
-                        className="hover:cursor-pointer"
                         size="sm"
                         onClick={closeVoicePanel}
                      >
@@ -4937,7 +4930,7 @@ export default function SlidesWorkspacePage() {
          <Button
             size="lg"
             className={cn(
-               "hover:cursor-pointer fixed bottom-6 right-6 z-40 gap-3 bg-primary text-primary-foreground shadow-xl transition-all hover:bg-primary/90",
+               "fixed bottom-6 right-6 z-40 gap-3 bg-primary text-primary-foreground shadow-xl transition-all hover:bg-primary/90",
                isVoicePanelOpen && "scale-[1.02]"
             )}
             onClick={() => {
@@ -4954,7 +4947,7 @@ export default function SlidesWorkspacePage() {
             }}
          >
             <MessageSquare className="h-5 w-5" />
-            Mic
+            Talk to Slides
          </Button>
       </div>
    );
@@ -4982,7 +4975,7 @@ const SlideStatusBadge = ({
    tone = "neutral",
 }: SlideStatusBadgeProps) => {
    const styles = {
-      neutral: "border-White/15 bg-White/5 text-White/70",
+      neutral: "border-white/15 bg-white/5 text-white/70",
       attention: "border-amber-300/40 bg-amber-400/15 text-amber-100",
       success: "border-emerald-300/40 bg-emerald-400/15 text-emerald-100",
    } as const;
