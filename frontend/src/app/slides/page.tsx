@@ -1604,6 +1604,7 @@ async function drawTwoColumnSlide(
       // Original two-column layout with bullets and highlights
       const columnGap = 48;
       const columnWidth = (contentWidth - columnGap) * 0.55;
+      let cursorY = top + titleHeight + 18;
       ctx.font = `500 28px ${BASE_FONT_STACK}`;
       drawBulletedList(
          ctx,
@@ -1619,42 +1620,39 @@ async function drawTwoColumnSlide(
             totalBulletCount: slide.bullets?.length ?? 0,
          }
       );
-   const titleAnimation = slide.animations?.title;
-   const titleProgress = animationProgress?.title ?? (titleAnimation ? 0 : 1);
+      const titleAnimation = slide.animations?.title;
+      const titleProgress =
+         animationProgress?.title ?? (titleAnimation ? 0 : 1);
 
-   withAnimation(
-      ctx,
-      titleAnimation,
-      titleProgress,
-      { x: paddingX, y: top, width: contentWidth, height: titleHeight },
-      () => {
-         let cursorY = top;
-         titleLines.forEach((line) => {
-            ctx.fillText(line, paddingX, cursorY);
-            cursorY += 54 * 1.1;
-         });
-      }
-   );
+      withAnimation(
+         ctx,
+         titleAnimation,
+         titleProgress,
+         { x: paddingX, y: top, width: contentWidth, height: titleHeight },
+         () => {
+            let cursorY = top;
+            titleLines.forEach((line) => {
+               ctx.fillText(line, paddingX, cursorY);
+               cursorY += 54 * 1.1;
+            });
+         }
+      );
 
-   let cursorY = top + titleHeight + 18;
-
-   const columnGap = 48;
-   const columnWidth = (contentWidth - columnGap) * 0.55;
-   ctx.font = `500 28px ${BASE_FONT_STACK}`;
-   drawBulletedList(
-      ctx,
-      slide.bullets,
-      paddingX,
-      cursorY,
-      columnWidth,
-      34,
-      theme,
-      {
-         animation: slide.animations?.bullets,
-         animationProgress,
-         totalBulletCount: slide.bullets?.length ?? 0,
-      }
-   );
+      ctx.font = `500 28px ${BASE_FONT_STACK}`;
+      drawBulletedList(
+         ctx,
+         slide.bullets,
+         paddingX,
+         cursorY,
+         columnWidth,
+         34,
+         theme,
+         {
+            animation: slide.animations?.bullets,
+            animationProgress,
+            totalBulletCount: slide.bullets?.length ?? 0,
+         }
+      );
 
       const notePanelX = paddingX + columnWidth + columnGap;
       const notePanelWidth = contentWidth - columnWidth - columnGap;
@@ -1675,9 +1673,9 @@ async function drawTwoColumnSlide(
       ctx.font = `600 20px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.textPrimary;
       ctx.fillText("Highlights", notePanelX + 28, cursorY + 12);
-   ctx.font = `600 20px ${BASE_FONT_STACK}`;
-   ctx.fillStyle = theme.textPrimary;
-   ctx.fillText("HighLights", notePanelX + 28, cursorY + 12);
+      ctx.font = `600 20px ${BASE_FONT_STACK}`;
+      ctx.fillStyle = theme.textPrimary;
+      ctx.fillText("HighLights", notePanelX + 28, cursorY + 12);
 
       ctx.font = `400 18px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.textSecondary;
@@ -2107,39 +2105,11 @@ async function drawStatsSlide(
          theme.panelStroke,
          1
       );
-      const progressKey = `bullet-${index}`;
-      const progress =
-         animationProgress?.[progressKey] ??
-         (bulletAnimation?.type === "stagger" ? 0 : baseProgress);
-
-      withAnimation(
-         ctx,
-         bulletAnimation,
-         progress,
-         { x, y, width: cardWidth, height: cardHeight },
-         () => {
-            drawRoundedRect(
-               ctx,
-               x,
-               y,
-               cardWidth,
-               cardHeight,
-               20,
-               theme.panel,
-               theme.panelStroke,
-               1
-            );
 
       ctx.font = `bold 48px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.accent;
       ctx.fillText(stat.value, x + cardWidth / 2, y + 30);
-      ctx.font = `bold 48px ${BASE_FONT_STACK}`;
-      ctx.fillStyle = theme.accent;
-      ctx.fillText(stat.value, x + cardWidth / 2, y + 30);
 
-      ctx.font = `600 18px ${BASE_FONT_STACK}`;
-      ctx.fillStyle = theme.textPrimary;
-      ctx.fillText(stat.label, x + cardWidth / 2, y + 90);
       ctx.font = `600 18px ${BASE_FONT_STACK}`;
       ctx.fillStyle = theme.textPrimary;
       ctx.fillText(stat.label, x + cardWidth / 2, y + 90);
@@ -2154,22 +2124,6 @@ async function drawStatsSlide(
             descY += 18;
          });
       }
-      if (stat.description) {
-         ctx.font = `400 14px ${BASE_FONT_STACK}`;
-         ctx.fillStyle = theme.metaText;
-               const descLines = wrapLines(
-                  ctx,
-                  stat.description,
-                  cardWidth - 32
-               );
-               let descY = y + 115;
-               descLines.forEach((line) => {
-                  ctx.fillText(line, x + cardWidth / 2, descY);
-                  descY += 18;
-               });
-            }
-         }
-      );
    });
 
    ctx.restore();
@@ -4530,7 +4484,6 @@ export default function SlidesWorkspacePage() {
                                                       )}
                                                    </p>
                                                    <p className="w-[135px] overflow-hidden truncate text-sm font-semibold text-white">
-                                                   <p className="w-[150px] overflow-hidden truncate text-sm font-semibold text-White">
                                                       {slide.title}
                                                    </p>
                                                 </button>
